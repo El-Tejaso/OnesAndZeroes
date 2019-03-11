@@ -94,7 +94,15 @@ class UIElement{
 }
 
 class Pin extends UIElement{
-  LogicGate chip;
+  private LogicGate chip;
+  
+  public boolean isDeleted(){
+    return chip.deleted;
+  }
+  
+  public void Update(){
+    chip.Update();
+  }
   
   Pin(LogicGate parentChip){
     chip = parentChip;
@@ -140,7 +148,7 @@ class InPin extends Pin{
   
   public void Connect(OutPin in){
     input = in;
-    chip.Update();
+    Update();
   }
 
   @Override
@@ -164,7 +172,14 @@ class InPin extends Pin{
   
   @Override
   public void OnValueChange(){
-    chip.Update();
+    if(IsConnected()){
+      if(input.isDeleted()){
+        //We need to remove all references to the deleted chip in order for the garbage collecter to collect it
+        Connect(null);
+      }
+    } else{
+      Update();
+    }
   }
 
   @Override
@@ -232,9 +247,16 @@ class OutPin extends Pin{
 //The base class for all logic gates. contains most of the functionality
 class LogicGate extends UIElement {
   String title = "uninitializedGate";
-  
+  public boolean deleted = false;
   InPin[] inputs;
   OutPin[] outputs;
+  
+  void Decouple(){
+    for(InPin p : inputs){
+      p.Connect(null);
+    }
+    deleted = true;
+  }
   
   @Override
   public void OnDrag(){
@@ -250,6 +272,7 @@ class LogicGate extends UIElement {
   @Override
   public void OnHover(){
     fill(gateHoverCol);
+    cursorOverDragableObject = true;
   }
   
   @Override
@@ -561,7 +584,7 @@ void setup(){
   
   textFont(createFont("Monospaced",12));
   circuit = new ArrayList<LogicGate>();
-  circuit.add(new BoolGate());
+  AddGate(0);
   
   keyMappings.put('a', AKey);
   keyMappings.put('A', AKey);
@@ -667,6 +690,11 @@ float menuX=-9999999999.0, menuY;
 
 String gateNames[] = {"1/0 Out","And", "Or", "Not", "Nand"};
 
+void DeleteGate(LogicGate lg){
+  circuit.remove(lg);
+  lg.Decouple();
+}
+
 void AddGate(int g){
   LogicGate lg;
   switch(g){
@@ -691,7 +719,8 @@ void AddGate(int g){
       break;
     }
   }
-
+  lg.x=lg.w;
+  lg.y=-lg.h;
   circuit.add(lg);
 }
 
@@ -721,7 +750,15 @@ void NodeConnectionOutToIn(OutPin out){
   }
 }
 
+boolean cursorOverDragableObject = false;
+
 void draw(){
+  if(cursorOverDragableObject){
+    cursor(MOVE);
+  } else {
+    noCursor();
+  }
+  
   //UI space
   dragStarted = false;
   background(backgroundCol);
@@ -751,6 +788,7 @@ void draw(){
     }
   }
   
+  cursorOverDragableObject=false;
   for(LogicGate lGate : circuit){
     lGate.Draw();
   }
