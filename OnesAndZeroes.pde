@@ -258,6 +258,7 @@ class OutPin extends Pin{
 class LogicGate extends UIElement {
   String title = "uninitializedGate";
   public boolean deleted = false;
+  protected boolean showText = true;
   InPin[] inputs;
   OutPin[] outputs;
   
@@ -269,8 +270,10 @@ class LogicGate extends UIElement {
     }
     
     //change their value to trigger an automatic decoupling
-    for(OutPin p : outputs){
-      p.SetValue(!p.Value());
+    if(outputs!=null){
+      for(OutPin p : outputs){
+        p.SetValue(!p.Value());
+      }
     }
     
     deleted = true;
@@ -297,13 +300,16 @@ class LogicGate extends UIElement {
   
   @Override
   public void Draw(){
-    fill(outputs[0].Value() ? trueCol : falseCol);
+    if(outputs!=null){
+      fill(outputs[0].Value() ? trueCol : falseCol);
+    }
     stroke(foregroundCol);
     super.Draw();
-    textAlign(CENTER);
-    fill(foregroundCol);
-    text(title,WorldX(),WorldY());
-    
+    if(showText){
+      textAlign(CENTER);
+      fill(foregroundCol);
+      text(title,WorldX(),WorldY());
+    }
     stroke(foregroundCol);
     if(inputs!=null){
       for(int i = 0; i < inputs.length; i++){
@@ -311,15 +317,16 @@ class LogicGate extends UIElement {
       }
     }
     
-    //All logic gates must have outputs
-    for(int i = 0; i < outputs.length; i++){
-      outputs[i].Draw();
+    if(outputs!=null){
+      for(int i = 0; i < outputs.length; i++){
+        outputs[i].Draw();
+      }
     }
     
     if(deleteTimer > 0.01f){
       noFill();
-      stroke(255,0,0);
-      arc(WorldX(),WorldY(),w,w,0,deleteTimer);
+      stroke(warningCol);
+      arc(WorldX(),WorldY(),2*w,2*w,0,deleteTimer);
       fill(255,0,0);
       text("deleting...",WorldX(),WorldY()+h+10);
     }
@@ -441,6 +448,106 @@ class NandGate extends BinaryGate{
   }
 }
 
+
+class RelayGate extends LogicGate{
+  public RelayGate(){
+    w=15;
+    h=15;
+    inputs = new InPin[1];
+    inputs[0] = new InPin(this);
+    inputs[0].MoveTo(-w/2-inputs[0].w/2,0);
+    
+    title = "->";
+    outputs = new OutPin[1];
+    outputs[0] = new OutPin(this);
+    outputs[0].MoveTo(w/2+outputs[0].w/2,0);
+  }
+  
+  @Override
+  protected void Update(){
+    outputs[0].SetValue(inputs[0].Value());
+  }
+}
+
+class LCDGate extends LogicGate{
+  public LCDGate(float wid,float hei){
+    showText=false;
+    w=wid; h=hei;
+    title = "LCD";
+    inputs = new InPin[1];
+    inputs[0] = new InPin(this);
+    inputs[0].MoveTo(-w/2-inputs[0].w/2,0);
+  }
+  
+  @Override
+  public void Draw(){
+    super.Draw();
+    stroke(foregroundCol);
+    fill(inputs[0].Value() ? foregroundCol : backgroundCol);
+    rect(WorldX()-w/2,WorldY()-h/2,w,h);
+  }
+}
+
+class PixelGate extends LogicGate{
+  public PixelGate(float wid, float hei){
+    w=wid; h = hei;
+    showText=false;
+    title = "PXL";
+    inputs = new InPin[24];
+    for(int i = 0; i < 8; i++){
+      inputs[i] = new InPin(this);
+      inputs[i].w = hei/8.0;
+      inputs[i].h = inputs[i].w;
+      inputs[i].MoveTo(-w/2.0-inputs[i].w/2.0, h/2.0 - (i)*inputs[i].h - inputs[i].h/2.0);
+    }
+    for(int i = 8; i < 16; i++){
+      inputs[i] = new InPin(this);
+      inputs[i].w = hei/8.0;
+      inputs[i].h = inputs[i].w;
+      inputs[i].MoveTo(w/2.0+inputs[i].w/2.0, h/2.0 - (i-8)*inputs[i].h - inputs[i].h/2.0);
+    }
+    for(int i = 16; i < 24; i++){
+      inputs[i] = new InPin(this);
+      inputs[i].w = hei/8.0;
+      inputs[i].h = inputs[i].w;
+      inputs[i].MoveTo(-w/2.0+inputs[i].w/2.0 + (i-16)*inputs[i].w, h/2.0 + inputs[i].h/2.0);
+    }
+  }
+  
+  public void Draw(){
+    super.Draw();
+    int r = 0,g=0,b=0;
+    for(int i = 0; i < 8; i++){
+      if(inputs[i].Value()){
+        r += pow(2,i);
+      }
+      
+      if(inputs[i+8].Value()){
+        g += pow(2,i);
+      }
+      
+      if(inputs[i+16].Value()){
+        b += pow(2,i);
+      }
+    }
+    
+    
+    stroke(foregroundCol);
+    fill(r,g,b);
+    rect(WorldX()-w/2,WorldY()-h/2,w,h);
+    fill(foregroundCol);
+    
+    textAlign(CENTER);
+    textSize(inputs[0].h/2);
+    for(int i = 0; i < 8; i ++){
+      text((int)pow(2,i), inputs[i].WorldX(),inputs[i].WorldY());
+      text((int)pow(2,i), inputs[i+8].WorldX(),inputs[i+8].WorldY());
+      text((int)pow(2,i), inputs[i+16].WorldX(),inputs[i+16].WorldY());
+    }
+    textSize(12);
+  }
+}
+
 //someday lmao
 /*
 class CompositeLogicGate extends LogicGate {
@@ -477,7 +584,7 @@ class StringMenu extends UIElement{
       }
     }
     
-    w = max * 5 + 20 + 2 * padding;
+    w = max * 7 + 20 + 2 * padding;
     h = (elements.length+1) * (elementHeight+padding) + padding;
     x = w/2;
     y = h/2;
@@ -527,7 +634,7 @@ class StringMenu extends UIElement{
     for(int i = 0; i < elements.length;i++){
       float x1 = WorldX();
       float y1 = WorldY()+ (i+1)*(elementHeight+padding)-h/2+elementHeight-padding;      
-      text(elements[i],x1,y1,10);
+      text(elements[i],x1,y1);
     }
   }
 }
@@ -677,7 +784,18 @@ void setup(){
       AddGate(i);
     }
   });
+  
   menus.add(logicGateAddMenu);
+  
+  UIElement outputGateAddMenu = new StringMenu(outputNames, "ADD OUTPUT GATE", new CallbackFunctionInt(){
+    @Override
+    public void f(int i){
+      AddDisplayGate(i);
+    }
+  });
+  outputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
+  
+  menus.add(outputGateAddMenu);
 }
 
 ArrayList<UIElement> menus;
@@ -693,6 +811,7 @@ color trueCol = color(0,255,0,100);
 color falseCol = color(255,0,0,100);
 color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
+color warningCol = color(255,0,0);
 
 float ToWorldX(float screenX){
   return ((screenX-width/2)/scale)+xPos;
@@ -736,8 +855,6 @@ boolean dragStarted = false;
 boolean displayAddGatesMenu = false;
 float menuX=-9999999999.0, menuY;
 
-String gateNames[] = {"1/0 Out","And", "Or", "Not", "Nand"};
-
 void DeleteGate(LogicGate lg){
   deletionQueue.add(lg);
   lg.Decouple();
@@ -753,6 +870,8 @@ void Cleanup(){
     deletionQueue.clear();
   }
 }
+
+String gateNames[] = {"Relay point", "1/0 Out","And", "Or", "Not", "Nand"};
 
 void AddGate(int g){
   LogicGate lg;
@@ -773,11 +892,41 @@ void AddGate(int g){
       lg = new NandGate();
       break;
     }
+    case(5):{
+      lg = new RelayGate();
+    }
     default:{
       lg = new BoolGate();
       break;
     }
   }
+  lg.x=lg.w;
+  lg.y=-lg.h;
+  circuit.add(lg);
+}
+
+String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large"};
+void AddDisplayGate(int g){
+  LogicGate lg;
+  switch(g){
+    case(1):{
+      lg = new PixelGate(20,20);
+      break;
+    }
+    case(2):{
+      lg = new LCDGate(80,80);
+      break;
+    }
+    case(3):{
+      lg = new PixelGate(80,80);
+      break;
+    }
+    default:{
+      lg = new LCDGate(20,20);
+      break;
+    }
+  }
+
   lg.x=lg.w;
   lg.y=-lg.h;
   circuit.add(lg);
