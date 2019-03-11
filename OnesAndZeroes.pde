@@ -42,12 +42,13 @@ class UIElement{
     //handle mouse clicks in an override if we aren't clicking an in/output
     if(mouseInside(x1,y1,w,h)){
       OnHover();
-      if(mousePressed&&(mouseButton==LEFT)){
+      if(mousePressed){
         if(!clicked){
           OnMouseClick();
           clicked=true;
         } else {
-          OnMouseDown();
+          if(!(draggedElement==this))
+            OnMouseDown();
         }
         
         if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>dragThreshold){
@@ -58,16 +59,17 @@ class UIElement{
         }
       } else if(clicked) {
         clicked = false;
-        if(!(draggedElement==this)){
-          OnMouseRelease();
-        } else {
-          draggedElement = null;
-        }
+        OnMouseRelease();
+        draggedElement = null;
       }
     } else {
-      clicked = false;
+      if(clicked){
+        clicked = false;
+        OnMouseRelease();
+      }
+      
       if(draggedElement==this){
-        if((!mousePressed)||(mouseButton!=LEFT))
+        if(!mousePressed)
           draggedElement = null;
       }
     }
@@ -134,7 +136,9 @@ class Pin extends UIElement{
   boolean lastValue = false;
   public boolean Value(){return false;}
   public boolean IsConnected(){return true;}
-  public void OnValueChange(){}
+  public void OnValueChange(){
+    chip.Update();
+  }
 }
 
 //An input pin on a logic gate. Every input can link to at most 1 output pin
@@ -177,9 +181,8 @@ class InPin extends Pin{
         //We need to remove all references to the deleted chip in order for the garbage collecter to collect it
         Connect(null);
       }
-    } else{
-      Update();
     }
+    Update();
   }
 
   @Override
@@ -199,7 +202,9 @@ class InPin extends Pin{
   
   @Override
   public void OnDrag(){
-    NodeConnectionInToOut(this);
+    if(mouseButton==LEFT){
+      NodeConnectionInToOut(this);
+    }
   }
 }
 
@@ -211,6 +216,9 @@ class OutPin extends Pin{
   }
   
   public void SetValue(boolean v){
+    if(isDeleted())
+      return;
+      
     value = v;
   }
   
@@ -238,7 +246,9 @@ class OutPin extends Pin{
   
   @Override
   public void OnDrag(){
-    NodeConnectionOutToIn(this);
+    if(mouseButton==LEFT){
+      NodeConnectionOutToIn(this);
+    }
   }
   
   boolean value = false;
@@ -252,21 +262,31 @@ class LogicGate extends UIElement {
   OutPin[] outputs;
   
   void Decouple(){
-    for(InPin p : inputs){
-      p.Connect(null);
+    if(inputs!=null){
+      for(InPin p : inputs){
+        p.Connect(null);
+      }
     }
+    
+    //change their value to trigger an automatic decoupling
+    for(OutPin p : outputs){
+      p.SetValue(!p.Value());
+    }
+    
     deleted = true;
   }
   
   @Override
   public void OnDrag(){
-    //drag functionality
-    if(dragStarted)
-      return;
-      
-    dragStarted = true;
-    x+= ToWorldX(mouseX)-ToWorldX(pmouseX);
-    y+= ToWorldY(mouseY)-ToWorldY(pmouseY);
+    if(mouseButton==LEFT){
+      //drag functionality
+      if(dragStarted)
+        return;
+        
+      dragStarted = true;
+      x+= ToWorldX(mouseX)-ToWorldX(pmouseX);
+      y+= ToWorldY(mouseY)-ToWorldY(pmouseY);
+    }
   }
   
   @Override
@@ -295,6 +315,30 @@ class LogicGate extends UIElement {
     for(int i = 0; i < outputs.length; i++){
       outputs[i].Draw();
     }
+    
+    if(deleteTimer > 0.01f){
+      noFill();
+      stroke(255,0,0);
+      arc(WorldX(),WorldY(),w,w,0,deleteTimer);
+      fill(255,0,0);
+      text("deleting...",WorldX(),WorldY()+h+10);
+    }
+  }
+  
+  float deleteTimer = 0;
+  @Override
+  void OnMouseDown(){
+    if(mouseButton==RIGHT){
+      deleteTimer += TWO_PI/60.0;
+      if(deleteTimer > TWO_PI){
+        DeleteGate(this);
+      }
+    }
+  }
+  
+  @Override
+  void OnMouseRelease(){
+    deleteTimer = 0;
   }
   
   //will involve setting outputs in overrides, which should cause a cascading change
@@ -315,8 +359,11 @@ class BoolGate extends LogicGate{
   
   @Override
   void OnMouseRelease(){
-    outputs[0].SetValue(!outputs[0].Value());
-    title = outputs[0].Value() ? "1" : "0";
+    super.OnMouseRelease();
+    if((mouseButton==LEFT)&&(draggedElement!=this)){
+      outputs[0].SetValue(!outputs[0].Value());
+      title = outputs[0].Value() ? "1" : "0";
+    }
   }  
 }
 
@@ -584,6 +631,7 @@ void setup(){
   
   textFont(createFont("Monospaced",12));
   circuit = new ArrayList<LogicGate>();
+  deletionQueue = new ArrayList<LogicGate>();
   AddGate(0);
   
   keyMappings.put('a', AKey);
@@ -691,8 +739,19 @@ float menuX=-9999999999.0, menuY;
 String gateNames[] = {"1/0 Out","And", "Or", "Not", "Nand"};
 
 void DeleteGate(LogicGate lg){
-  circuit.remove(lg);
+  deletionQueue.add(lg);
   lg.Decouple();
+}
+
+ArrayList<LogicGate> deletionQueue;
+
+void Cleanup(){
+  if(deletionQueue.size()>0){
+    for(LogicGate lg : deletionQueue){
+      circuit.remove(lg);
+    }
+    deletionQueue.clear();
+  }
 }
 
 void AddGate(int g){
@@ -796,6 +855,8 @@ void draw(){
   for(UIElement element : menus){
     element.Draw();
   }
+  
+  Cleanup();
 }
 
 void mouseWheel(MouseEvent e){
