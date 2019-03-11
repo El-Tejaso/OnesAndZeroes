@@ -53,6 +53,7 @@ class UIElement{
         if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>dragThreshold){
             if(draggedElement==null){
               draggedElement = this;
+              OnDragStart();
             }
         }
       } else if(clicked) {
@@ -88,10 +89,15 @@ class UIElement{
   public void OnHover(){}
   
   public void OnDrag(){}
+  
+  public void OnDragStart(){}
 }
 
 class Pin extends UIElement{
-  Pin(){
+  LogicGate chip;
+  
+  Pin(LogicGate parentChip){
+    chip = parentChip;
     dragThreshold = -1;
   }
   
@@ -101,6 +107,26 @@ class Pin extends UIElement{
     rect(WorldX()-w/2+2,WorldY()-w/2+2,w-4,h-4);
     lastSelectedPin = this;
   }
+  
+  @Override
+  public void Draw(){
+    stroke(foregroundCol);
+    if(IsConnected()){
+      if(Value()!=lastValue){
+        OnValueChange();
+      }
+      fill(Value() ? trueCol : falseCol);
+      lastValue = Value();
+    } else {
+      noFill();
+    }
+    super.Draw();
+  }
+  
+  boolean lastValue = false;
+  public boolean Value(){return false;}
+  public boolean IsConnected(){return true;}
+  public void OnValueChange(){}
 }
 
 //An input pin on a logic gate. Every input can link to at most 1 output pin
@@ -108,17 +134,8 @@ class InPin extends Pin{
   private OutPin input;
   
   public InPin(LogicGate p){
+    super(p);
     parent = p;
-  }
-  
-  @Override
-  public void Draw(){
-    if(IsConnected()){
-      fill(Value() ? trueCol : falseCol);
-    } else {
-      noFill();
-    }
-    super.Draw();
   }
   
   public void Connect(OutPin in){
@@ -130,11 +147,26 @@ class InPin extends Pin{
     super.OnHover();
     lastSelectedInput = this;
   }
-
+  
+  @Override
+  public void Draw(){
+    super.Draw();
+    if(IsConnected()){
+      line(WorldX(),WorldY(),input.WorldX(),input.WorldY());
+    }
+  }
+  
+  @Override
   public boolean IsConnected(){
     return (input!=null);
   }
+  
+  @Override
+  public void OnValueChange(){
+    chip.Update();
+  }
 
+  @Override
   public boolean Value(){
     if(input!=null){
       return input.Value();
@@ -144,14 +176,21 @@ class InPin extends Pin{
   }
   
   @Override
+  public void OnDragStart(){
+    ClearSelection();
+    Connect(null);
+  }
+  
+  @Override
   public void OnDrag(){
-    NodeConnectionInToOut();
+    NodeConnectionInToOut(this);
   }
 }
 
 //This is a pin that outputs a value to an input pin.
-class OutPin extends Pin{
+class OutPin extends Pin{  
   OutPin(LogicGate p){
+    super(p);
     parent = p;
   }
   
@@ -159,10 +198,10 @@ class OutPin extends Pin{
     value = v;
   }
   
+  @Override
   public boolean Value(){
     return value;
   }
-
 
   @Override
   public void OnHover(){
@@ -177,8 +216,13 @@ class OutPin extends Pin{
   }
   
   @Override
+  public void OnDragStart(){
+    ClearSelection();
+  }
+  
+  @Override
   public void OnDrag(){
-    NodeConnectionOutToIn();
+    NodeConnectionOutToIn(this);
   }
   
   boolean value = false;
@@ -644,16 +688,20 @@ void ClearSelection(){
   lastSelectedInput = null;
 }
 
-void NodeConnectionInToOut(){
-  //lastSelectedInput = in;
+void NodeConnectionInToOut(InPin in){
   stroke(gateHoverCol);
-  line(lastSelectedInput.WorldX(), lastSelectedInput.WorldY(), MouseXPos(), MouseYPos());
+  line(in.WorldX(), in.WorldY(), MouseXPos(), MouseYPos());
+  if(lastSelectedOutput!=null){
+    in.Connect(lastSelectedOutput);
+  }
 }
 
-void NodeConnectionOutToIn(){
-  //lastSelectedOutput = out;
+void NodeConnectionOutToIn(OutPin out){
   stroke(gateHoverCol);
-  line(lastSelectedOutput.WorldX(), lastSelectedOutput.WorldY(), MouseXPos(), MouseYPos());
+  line(out.WorldX(), out.WorldY(), MouseXPos(), MouseYPos());
+  if(lastSelectedInput!=null){
+    lastSelectedInput.Connect(out);
+  }
 }
 
 void draw(){
