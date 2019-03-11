@@ -1,111 +1,39 @@
-class InPin{
-  float x,y;
-  private LogicGate parent;
-  LogicGate getParent(){
-    return parent;
-  }
-  
-  InPin(LogicGate p){
-    parent = p;
-  }
-  
-  private OutPin input;
-  
-  public void connect(OutPin in){
-    input = in;
-  }
-  
-  public boolean get(){
-    if(input!=null){
-      return input.output;
-    } else {
-      return false;
-    }
-  }
-}
+//---------A logic gate simulator----------
+//
+//-----------------------------------------
 
-class OutPin{
-  float x,y;
-  private LogicGate parent;
-  public LogicGate getParent(){
-    return parent;
-  }
-  
-  OutPin(LogicGate p){
-    parent = p;
-  }
-  
-  public void connect(InPin outputPin){
-    out = outputPin;
-    if(out!=null){
-      out.connect(this);
-      out.parent.Update();
-    }
-  }
-  
-  public void set(boolean val){
-    if(val==output)
-      return;
-    
-    output = val;
-    if(out!=null){
-      out.parent.Update();
-    }
-  }
-  
-  public boolean get(){
-    return output;
-  }
-  
-  public InPin getOut(){
-    return out;
-  }
-  
-  private InPin out;
-  private boolean output;
-}
 
-//base class
-class LogicGate{
-  public float x = 0;
-  public float y = 0;
-  String title = "uninitializedGate";
-  
-  InPin[] inputs;
-  OutPin[] outputs;
-  private boolean clicked = false;
-  private boolean ioInputHandled=false;
+//A rectangular UI element that all classes will derive from 
+class UIElement{
+  protected UIElement parent;
+  public float x,y,w=10,h=10;
   private boolean beingDragged = false;
+  private boolean clicked = false;
   
-  public void OnClick(){}
-  
-  public void OnClickHold(){
-    //drag functionality
-    if(dragStarted)
-      return;
-      
-    dragStarted = true;
-    x+= toWorldX(mouseX)-toWorldX(pmouseX);
-    y+= toWorldY(mouseY)-toWorldY(pmouseY);
+  public void MoveTo(float x1, float y1){
+    x = x1; y = y1;
   }
-  public void OnHover(){}
   
+  public float WorldX(){
+    if(parent!=null)
+      return parent.WorldX()+x;
+      
+    return x;
+  }
+  
+  public float WorldY(){
+    if(parent!=null)
+      return parent.WorldY()+y;
+      
+    return y;
+  }
+  
+  //this function is called every frame, and can also be used to start events
   public void Draw(){
-    fill(outputs[0].output ? trueCol : falseCol);
+    float x1 = WorldX()-w/2;
+    float y1 = WorldY()-h/2; 
+    rect(x1,y1,w,h);
     
-    float w = 10 + title.length()*10;
-    float ioNodeWidth = 10;
-    float h;
-    if(inputs==null){
-      h = 20+ (ioNodeWidth+4)*outputs.length;
-    } else {
-      h = 20 + (ioNodeWidth+4)*max(inputs.length,outputs.length);
-    }
-    
-    float x1 = x-w/2;
-    float y1 = y-h/2;
-    
-    //noFill();
     //handle mouse clicks in an override if we aren't clicking an in/output
     if(mousePressed&&(mouseButton==LEFT)){
       if(mouseInside(x1,y1,w,h)){
@@ -132,69 +60,110 @@ class LogicGate{
     if(beingDragged){
       OnClickHold();
     }
-    
-    stroke(foregroundCol);
-    //let overrides determine the fill color of the rect
-    rect(x1,y1,w,h);
-    textAlign(CENTER);
-    fill(foregroundCol);
-    text(title,x1+w/2,y1+h/2);
-    //output connections
-    
-    if(inputs!=null){
-      for(int i = 0; i < inputs.length;i++){
-        float x2 = x1-ioNodeWidth-3;
-        float y2 = y1+i*h/(float)(inputs.length+1);
-        inputs[i].x=x2+ioNodeWidth/2;
-        inputs[i].y=y2+ioNodeWidth/2;
-        
-        if(button(x2,y2,ioNodeWidth,ioNodeWidth,"")){
-          if(!ioInputHandled){
-            ioInputHandled = true;
-            pushInput(inputs[i]);
-          }
-        } else {
-          ioInputHandled = false;
-        }
-        
-        if(inputs[i].get()){
-          fill(trueCol);
-        } else {
-          fill(falseCol);
-        }
-        
-        rect(x2,y2,ioNodeWidth,ioNodeWidth);
-      }
+  }
+  
+  public void OnClick(){}
+  
+  public void OnClickHold(){}
+
+  public void OnHover(){}
+}
+
+//An input pin on a logic gate. Every input can link to at most 1 output pin
+class InPin extends UIElement{
+  private OutPin input;
+  
+  public InPin(LogicGate p){
+    parent = p;
+    w = 10;
+    h = 10;
+  }
+  
+  @Override
+  public void Draw(){
+    if(IsConnected()){
+      fill(Value() ? trueCol : falseCol);
+    } else {
+      noFill();
     }
-    
-    for(int i = 0; i < outputs.length;i++){
-      float x2 = x1+w+3;
-      float y2 = y1+(i+1)*h/(float)(outputs.length+1)-ioNodeWidth/2;
-      outputs[i].x=x2+ioNodeWidth/2;
-      outputs[i].y=y2+ioNodeWidth/2;
-      
-      if(button(x2,y2,ioNodeWidth,ioNodeWidth,"")){
-        if(!ioInputHandled){
-          ioInputHandled = true;
-          pushOutput(outputs[i]);
-        }
-      } else {
-        ioInputHandled = false;
-      }
-      
-      if(outputs[i].output){
-        fill(trueCol);
-      } else {
-        fill(falseCol);
-      }
-      rect(x2,y2,ioNodeWidth,ioNodeWidth);
-      
-      fill(0,0,255);
-      if(outputs[i].getOut()!=null){
-        line(outputs[i].x,outputs[i].y, outputs[i].getOut().x, outputs[i].getOut().y);
-      }
+    super.Draw();
+  }
+  
+  public void Connect(OutPin in){
+    input = in;
+  }
+
+  public boolean IsConnected(){
+    return (input!=null);
+  }
+
+  public boolean Value(){
+    if(input!=null){
+      return input.Value();
+    } else {
+      return false;
     }
   }
+}
+
+//This is a pin that outputs a value to an input pin.
+class OutPin extends UIElement{
+  OutPin(LogicGate p){
+    parent = p;
+  }
+  
+  public void SetValue(boolean v){
+    value = v;
+  }
+  
+  public boolean Value(){
+    return value;
+  }
+  
+  boolean value = false;
+}
+
+//The base class for all logic gates. contains most of the functionality
+class LogicGate extends UIElement {
+  String title = "uninitializedGate";
+  
+  InPin[] inputs;
+  OutPin[] outputs;
+  
+  public void OnClick(){}
+  
+  public void OnClickHold(){
+    //drag functionality
+    if(dragStarted)
+      return;
+      
+    dragStarted = true;
+    x+= toWorldX(mouseX)-toWorldX(pmouseX);
+    y+= toWorldY(mouseY)-toWorldY(pmouseY);
+  }
+  
+  public void OnHover(){}
+  
+  public void Draw(){
+    fill(outputs[0].Value() ? trueCol : falseCol);
+    super.Draw();
+    textAlign(CENTER);
+    fill(foregroundCol);
+    text(title,WorldX(),WorldY());
+    
+    stroke(foregroundCol);
+    if(inputs!=null){
+      for(int i = 0; i < inputs.length; i++){
+        inputs[i].Draw();
+      }
+    }
+    
+    //All logic gates must have outputs
+    for(int i = 0; i < outputs.length; i++){
+      outputs[i].Draw();
+    }
+  }
+  
   //will involve setting outputs in overrides, which should cause a cascading change
   protected void Update(){}
 }
@@ -202,50 +171,61 @@ class LogicGate{
 class BoolGate extends LogicGate{
   public BoolGate(){    
     title = "1";
-    //no inputs, these are the inputs
+    w = 30;
+    h = 20;
+    //just one output that can be toggled
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
-    outputs[0].set(true);
+    outputs[0].SetValue(true);
+    outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
   
   @Override
   void OnClick(){
-    outputs[0].set(!outputs[0].get());
-    title = outputs[0].get() ? "1" : "0";
+    outputs[0].SetValue(!outputs[0].Value());
+    title = outputs[0].Value() ? "1" : "0";
   }  
 }
 
-class AndGate extends LogicGate{
-  public AndGate(){
+//should not be instantiated
+class BinaryGate extends LogicGate{
+  public BinaryGate(){
+    w = 50; 
+    h = 30;    
+    
     inputs = new InPin[2];
     inputs[0] = new InPin(this);
+    inputs[0].MoveTo(-w/2-inputs[0].w/2,inputs[0].h);
     inputs[1] = new InPin(this);
-    title = "&&";
+    inputs[1].MoveTo(-w/2-inputs[1].w/2,-inputs[1].h);
     
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
-  }
-  
-  @Override
-  protected void Update(){
-    outputs[0].set(inputs[0].get() && inputs[1].get());
+    outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
 }
 
-class OrGate extends LogicGate{
-  public OrGate(){
-    inputs = new InPin[2];
-    inputs[0] = new InPin(this);
-    inputs[1] = new InPin(this);
-    title = "||";
-    
-    outputs = new OutPin[1];
-    outputs[0] = new OutPin(this);
+class AndGate extends BinaryGate{
+  public AndGate(){
+    super();
+    title = "&&";
   }
   
   @Override
   protected void Update(){
-    outputs[0].set(inputs[0].get() || inputs[1].get());
+    outputs[0].SetValue(inputs[0].Value() && inputs[1].Value());
+  }
+}
+
+class OrGate extends BinaryGate{
+  public OrGate(){
+    super();
+    title = "||";
+  }
+  
+  @Override
+  protected void Update(){
+    outputs[0].SetValue(inputs[0].Value() || inputs[1].Value());
   }
 }
 
@@ -261,7 +241,7 @@ class NotGate extends LogicGate{
   
   @Override
   protected void Update(){
-    outputs[0].set(!inputs[0].get());
+    outputs[0].SetValue(!inputs[0].Value());
   }
 }
 
@@ -275,7 +255,7 @@ class CompositeLogicGate extends LogicGate {
 }
 */
 
-//INPUT SYSTEM copy pasted from another project
+//INPUT SYSTEM copy pasted from another personal project
 //not used by the input system, but by us to do stuff only once
 boolean[] keyJustPressed = new boolean[21];
 boolean[] keyStates = new boolean[21];
@@ -368,7 +348,6 @@ void keyReleased(){
 
 float dragStartPos = 0;
 float dragDelta = 0;
-
 
 void setup(){
   size(800,600);
@@ -539,36 +518,6 @@ void addGatesMenu(float x, float y){
 
 OutPin outputToLink;
 InPin inputToLink;
-
-void pushInput(InPin in){
-  if(in==null){
-    outputToLink = null;
-    inputToLink = null;
-    return;
-  }
-    
-  inputToLink = in;
-  if(outputToLink!=null){
-    outputToLink.connect(inputToLink);
-    outputToLink = null;
-    inputToLink = null;
-  }
-}
-
-void pushOutput(OutPin out){
-  if(out==null){
-    outputToLink = null;
-    inputToLink = null;
-    return;
-  }
-  
-  outputToLink = out;
-  if(inputToLink!=null){
-    outputToLink.connect(inputToLink);
-    outputToLink = null;
-    inputToLink = null;
-  }
-}
 
 void draw(){
   //UI space
