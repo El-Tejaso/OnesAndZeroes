@@ -6,7 +6,7 @@
 //A rectangular UI element that all classes will derive from 
 class UIElement{
   protected UIElement parent;
-  public float x,y,w=10,h=10;
+  public float x,y,w=5,h=5;
   private boolean beingDragged = false;
   private boolean clicked = false;
   public boolean visible = true;
@@ -88,8 +88,6 @@ class InPin extends UIElement{
   
   public InPin(LogicGate p){
     parent = p;
-    w = 10;
-    h = 10;
   }
   
   @Override
@@ -149,9 +147,8 @@ class LogicGate extends UIElement {
   InPin[] inputs;
   OutPin[] outputs;
   
-  public void OnClick(){}
-  
-  public void OnClickHold(){
+  @Override
+  public void OnDrag(){
     //drag functionality
     if(dragStarted)
       return;
@@ -161,10 +158,12 @@ class LogicGate extends UIElement {
     y+= toWorldY(mouseY)-toWorldY(pmouseY);
   }
   
+  @Override
   public void OnHover(){
     fill(gateHoverCol);
   }
   
+  @Override
   public void Draw(){
     fill(outputs[0].Value() ? trueCol : falseCol);
     super.Draw();
@@ -202,7 +201,7 @@ class BoolGate extends LogicGate{
   }
   
   @Override
-  void OnClick(){
+  void OnMouseRelease(){
     outputs[0].SetValue(!outputs[0].Value());
     title = outputs[0].Value() ? "1" : "0";
   }  
@@ -252,12 +251,16 @@ class OrGate extends BinaryGate{
 
 class NotGate extends LogicGate{
   public NotGate(){
+    w=20;
+    h=20;
     inputs = new InPin[1];
     inputs[0] = new InPin(this);
+    inputs[0].MoveTo(-w/2-inputs[0].w/2,0);
     
     title = "!";
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
+    outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
   
   @Override
@@ -276,39 +279,83 @@ class CompositeLogicGate extends LogicGate {
 }
 */
 
+//----------------- CUSTOM UI ELEMENTS ----------------
+//used by other ui elements
+class CallbackFunctionInt {
+  public void f(int i){}
+}
+
 class StringMenu extends UIElement{
   String[] elements;
-  public StringMenu(String[] arr){
+  float elementHeight = 11;
+  float padding = 2;
+  String heading;
+  CallbackFunctionInt f;
+  
+  public StringMenu(String[] arr, String title, CallbackFunctionInt intFunction){
+    heading = title;
     elements = arr;
-    int max = 0;
+    f = intFunction;
+    
+    //setup the dimensions
+    int max = heading.length();
     for(String s : elements){
       if(s.length() > max){
         max = s.length();
       }
     }
     
-    w = max * 3 + 20;
-    h = elements.length * 15;
+    w = max * 5 + 20 + 2 * padding;
+    h = (elements.length+1) * (elementHeight+padding) + padding;
+    x = w/2;
+    y = h/2;
   }
   
   @Override
-  public void OnHover(){
-    
+  public void MoveTo(float x1, float y1){
+    x = x1+w/2; y = y1+h/2;
   }
   
   @Override
   public void OnMouseRelease(){
-    
+    listClicked = false;
   }
   
-  @Override
-  public void OnDrag(){
-    
-  }
+  boolean listClicked = false;
   
   @Override
   public void Draw(){
+    noFill();
     super.Draw();
+    fill(menuHeadingCol);
+    textAlign(CENTER);
+    text(heading,WorldX(),WorldY()-h/2+elementHeight);
+    for(int i = 0; i < elements.length;i++){
+      noFill();
+      float x1 = WorldX()-w/2+padding;
+      float y1 = WorldY()+padding + i*(elementHeight+padding)-h/2+elementHeight;
+      float w1 = w-2*padding;
+      float h1 = elementHeight;
+      if(mouseInside(x1,y1,w1,h1)){
+        fill(gateHoverCol);
+        if(mousePressed && (mouseButton==LEFT)){
+          noFill();
+          if(!listClicked){
+            listClicked = true;
+            f.f(i);
+          }
+        }
+      }
+      rect(x1,y1, w1, h1);
+    }
+    
+    fill(foregroundCol);
+    textAlign(CENTER);
+    for(int i = 0; i < elements.length;i++){
+      float x1 = WorldX();
+      float y1 = WorldY()+ (i+1)*(elementHeight+padding)-h/2+elementHeight-padding;      
+      text(elements[i],x1,y1,10);
+    }
   }
 }
 
@@ -409,6 +456,7 @@ float dragDelta = 0;
 void setup(){
   size(800,600);
   
+  textFont(createFont("Monospaced",12));
   circuit = new ArrayList<LogicGate>();
   circuit.add(new BoolGate());
   
@@ -447,7 +495,19 @@ void setup(){
   keyMappings.put('t', TKey);
   keyMappings.put('T', TKey);
   keyMappings.put(' ', SpaceKey);
+  
+  menus = new ArrayList<UIElement>();
+  UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
+    @Override
+    public void f(int i){
+      AddGate(i);
+    }
+  });
+  menus.add(logicGateAddMenu);
 }
+
+ArrayList<UIElement> menus;
+
 //moving the screen around
 float xPos=0;
 float yPos=0;
@@ -458,6 +518,7 @@ color foregroundCol = color(0);
 color trueCol = color(0,255,0,100);
 color falseCol = color(255,0,0,100);
 color gateHoverCol = color(0,0,255,100);
+color menuHeadingCol = color(0,0,255);
 
 float toWorldX(float screenX){
   return ((screenX-width/2)/scale)+xPos;
@@ -501,27 +562,11 @@ boolean dragStarted = false;
 boolean displayAddGatesMenu = false;
 float menuX=-9999999999.0, menuY;
 
-String gateNames[] = {"0/1 Out","And", "Or", "Not"};
+String gateNames[] = {"1/0 Out","And", "Or", "Not"};
 
-void addGatesMenu(float x, float y){
-  if(menuX<-999999){
-    menuX=x;
-    menuY=y;
-  }
-  
-  int result = -1;
-  for(int i = 0; i < gateNames.length;i++){
-    if(result < 0){
-      float w = 40;
-      float h = 20;
-    }
-  }
-  
-  if(result == -1)
-    return;
-  
+void AddGate(int g){
   LogicGate lg;
-  switch(result){
+  switch(g){
     case(1):{
       lg = new AndGate();
       break;
@@ -539,13 +584,8 @@ void addGatesMenu(float x, float y){
       break;
     }
   }
-  
-  lg.x = mouseXPos();
-  lg.y = mouseYPos();
+
   circuit.add(lg);
-  
-  displayAddGatesMenu = false;
-  menuX = -99999999999.0;
 }
 
 OutPin outputToLink;
@@ -579,17 +619,13 @@ void draw(){
     }
   }
   
-  if(keyPushed(AKey)&&keyDown(ShiftKey)){
-    displayAddGatesMenu = true;
-  }
-  
-  if(displayAddGatesMenu){
-    addGatesMenu(mouseXPos(),mouseYPos());
-  }
-  
   noFill();
   for(LogicGate lGate : circuit){
     lGate.Draw();
+  }
+  
+  for(UIElement element : menus){
+    element.Draw();
   }
   
   if(inputToLink!=null){
