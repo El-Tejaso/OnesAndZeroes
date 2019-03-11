@@ -32,34 +32,36 @@ class UIElement{
   public void Draw(){
     float x1 = WorldX()-w/2;
     float y1 = WorldY()-h/2; 
-    rect(x1,y1,w,h);
     
     //handle mouse clicks in an override if we aren't clicking an in/output
-    if(mousePressed&&(mouseButton==LEFT)){
-      if(mouseInside(x1,y1,w,h)){
-        OnHover();
+    if(mouseInside(x1,y1,w,h)){
+      OnHover();
+      if(mousePressed&&(mouseButton==LEFT)){
         if(!clicked){
           clicked=true;
-        } else {
-          if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>2)
-            beingDragged = true;
         }
-      } else {
+        
+        if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>2)
+            beingDragged = true;
+      } else if(clicked) {
+        clicked = false;
+        if(!beingDragged){
+          OnClick();
+        }
+        beingDragged = false;
       }
     } else {
-      if(clicked){
-        if(mouseInside(x1,y1,w,h)){
-          if(!beingDragged)
-            OnClick();
-        }
-        clicked = false;
-      }
-      beingDragged = false;
+      clicked = false;
+      if((!mousePressed)||(mouseButton!=LEFT))
+        beingDragged = false;
     }
     
     if(beingDragged){
       OnClickHold();
     }
+    
+    //let the input overrides determine the colour of this rectangle
+    rect(x1,y1,w,h);
   }
   
   public void OnClick(){}
@@ -120,6 +122,12 @@ class OutPin extends UIElement{
     return value;
   }
   
+  @Override
+  public void Draw(){
+    fill(Value() ? trueCol : falseCol);
+    super.Draw();
+  }
+  
   boolean value = false;
 }
 
@@ -142,7 +150,9 @@ class LogicGate extends UIElement {
     y+= toWorldY(mouseY)-toWorldY(pmouseY);
   }
   
-  public void OnHover(){}
+  public void OnHover(){
+    fill(gateHoverCol);
+  }
   
   public void Draw(){
     fill(outputs[0].Value() ? trueCol : falseCol);
@@ -400,7 +410,7 @@ color backgroundCol = color(255);
 color foregroundCol = color(0);
 color trueCol = color(0,255,0,100);
 color falseCol = color(255,0,0,100);
-color gateCol = color(0,0,255,100);
+color gateHoverCol = color(0,0,255,100);
 
 float toWorldX(float screenX){
   return ((screenX-width/2)/scale)+xPos;
@@ -446,27 +456,6 @@ float menuX=-9999999999.0, menuY;
 
 String gateNames[] = {"0/1 Out","And", "Or", "Not"};
 
-boolean button(float x, float y, float w, float h, String text){
-  boolean res = false;
-  if(mouseInside(x,y,w,h)){
-    if(mousePressed){
-      if(mouseButton==LEFT){
-        noFill();
-        res = true;
-      }
-    } else {
-      fill(gateCol);
-    }
-  } else {
-    noFill();
-  }
-  rect(x,y,w,h);
-  fill(foregroundCol);
-  textAlign(CENTER);
-  text(text,x+w/2,y+h/2);
-  return res;
-}
-
 void addGatesMenu(float x, float y){
   if(menuX<-999999){
     menuX=x;
@@ -478,10 +467,6 @@ void addGatesMenu(float x, float y){
     if(result < 0){
       float w = 40;
       float h = 20;
-      if(button(menuX,i*h+menuY,w,h,gateNames[i])){
-        result = i;
-        break;
-      }
     }
   }
   
