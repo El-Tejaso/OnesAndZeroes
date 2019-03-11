@@ -140,6 +140,7 @@ class InPin extends Pin{
   
   public void Connect(OutPin in){
     input = in;
+    chip.Update();
   }
 
   @Override
@@ -317,7 +318,7 @@ class BinaryGate extends LogicGate{
 class AndGate extends BinaryGate{
   public AndGate(){
     super();
-    title = "&&";
+    title = "&";
   }
   
   @Override
@@ -329,7 +330,7 @@ class AndGate extends BinaryGate{
 class OrGate extends BinaryGate{
   public OrGate(){
     super();
-    title = "||";
+    title = "|";
   }
   
   @Override
@@ -355,6 +356,18 @@ class NotGate extends LogicGate{
   @Override
   protected void Update(){
     outputs[0].SetValue(!inputs[0].Value());
+  }
+}
+
+class NandGate extends BinaryGate{
+  public NandGate(){
+    super();
+    title = "!&";
+  }
+  
+  @Override
+  protected void Update(){
+    outputs[0].SetValue(!(inputs[0].Value() && inputs[1].Value()));
   }
 }
 
@@ -652,7 +665,7 @@ boolean dragStarted = false;
 boolean displayAddGatesMenu = false;
 float menuX=-9999999999.0, menuY;
 
-String gateNames[] = {"1/0 Out","And", "Or", "Not"};
+String gateNames[] = {"1/0 Out","And", "Or", "Not", "Nand"};
 
 void AddGate(int g){
   LogicGate lg;
@@ -667,6 +680,10 @@ void AddGate(int g){
     }
     case(3):{
       lg = new NotGate();
+      break;
+    }
+    case(4):{
+      lg = new NandGate();
       break;
     }
     default:{
