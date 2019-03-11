@@ -1,5 +1,5 @@
 //---------A logic gate simulator----------
-//
+//By Tejas Hegde
 //-----------------------------------------
 
 
@@ -9,6 +9,7 @@ class UIElement{
   public float x,y,w=10,h=10;
   private boolean beingDragged = false;
   private boolean clicked = false;
+  public boolean visible = true;
   
   public void MoveTo(float x1, float y1){
     x = x1; y = y1;
@@ -30,6 +31,9 @@ class UIElement{
   
   //this function is called every frame, and can also be used to start events
   public void Draw(){
+    if(!visible)
+      return;
+    
     float x1 = WorldX()-w/2;
     float y1 = WorldY()-h/2; 
     
@@ -38,7 +42,10 @@ class UIElement{
       OnHover();
       if(mousePressed&&(mouseButton==LEFT)){
         if(!clicked){
+          OnMouseClick();
           clicked=true;
+        } else {
+          OnMouseDown();
         }
         
         if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>2)
@@ -46,7 +53,7 @@ class UIElement{
       } else if(clicked) {
         clicked = false;
         if(!beingDragged){
-          OnClick();
+          OnMouseRelease();
         }
         beingDragged = false;
       }
@@ -57,18 +64,22 @@ class UIElement{
     }
     
     if(beingDragged){
-      OnClickHold();
+      OnDrag();
     }
     
     //let the input overrides determine the colour of this rectangle
     rect(x1,y1,w,h);
   }
   
-  public void OnClick(){}
+  public void OnMouseClick(){}
   
-  public void OnClickHold(){}
+  public void OnMouseRelease(){}
+  
+  public void OnMouseDown(){}
 
   public void OnHover(){}
+  
+  public void OnDrag(){}
 }
 
 //An input pin on a logic gate. Every input can link to at most 1 output pin
@@ -264,6 +275,42 @@ class CompositeLogicGate extends LogicGate {
   }
 }
 */
+
+class StringMenu extends UIElement{
+  String[] elements;
+  public StringMenu(String[] arr){
+    elements = arr;
+    int max = 0;
+    for(String s : elements){
+      if(s.length() > max){
+        max = s.length();
+      }
+    }
+    
+    w = max * 3 + 20;
+    h = elements.length * 15;
+  }
+  
+  @Override
+  public void OnHover(){
+    
+  }
+  
+  @Override
+  public void OnMouseRelease(){
+    
+  }
+  
+  @Override
+  public void OnDrag(){
+    
+  }
+  
+  @Override
+  public void Draw(){
+    super.Draw();
+  }
+}
 
 //INPUT SYSTEM copy pasted from another personal project
 //not used by the input system, but by us to do stuff only once
