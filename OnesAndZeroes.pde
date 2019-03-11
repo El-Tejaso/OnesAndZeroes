@@ -2,14 +2,16 @@
 //By Tejas Hegde
 //-----------------------------------------
 
+//This is to prevent multiple things being dragged at once
+UIElement draggedElement = null;
 
 //A rectangular UI element that all classes will derive from 
 class UIElement{
   protected UIElement parent;
   public float x,y,w=5,h=5;
-  private boolean beingDragged = false;
   private boolean clicked = false;
   public boolean visible = true;
+  protected int dragThreshold = 2;
   
   public void MoveTo(float x1, float y1){
     x = x1; y = y1;
@@ -48,22 +50,28 @@ class UIElement{
           OnMouseDown();
         }
         
-        if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>2)
-            beingDragged = true;
+        if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>dragThreshold){
+            if(draggedElement==null){
+              draggedElement = this;
+            }
+        }
       } else if(clicked) {
         clicked = false;
-        if(!beingDragged){
+        if(!(draggedElement==this)){
           OnMouseRelease();
+        } else {
+          draggedElement = null;
         }
-        beingDragged = false;
       }
     } else {
       clicked = false;
-      if((!mousePressed)||(mouseButton!=LEFT))
-        beingDragged = false;
+      if(draggedElement==this){
+        if((!mousePressed)||(mouseButton!=LEFT))
+          draggedElement = null;
+      }
     }
     
-    if(beingDragged){
+    if(draggedElement==this){
       OnDrag();
     }
     
@@ -82,8 +90,21 @@ class UIElement{
   public void OnDrag(){}
 }
 
+class Pin extends UIElement{
+  Pin(){
+    dragThreshold = -1;
+  }
+  
+  @Override
+  public void OnHover(){
+    stroke(foregroundCol);
+    rect(WorldX()-w/2+2,WorldY()-w/2+2,w-4,h-4);
+    lastSelectedPin = this;
+  }
+}
+
 //An input pin on a logic gate. Every input can link to at most 1 output pin
-class InPin extends UIElement{
+class InPin extends Pin{
   private OutPin input;
   
   public InPin(LogicGate p){
@@ -104,6 +125,12 @@ class InPin extends UIElement{
     input = in;
   }
 
+  @Override
+  public void OnHover(){
+    super.OnHover();
+    lastSelectedInput = this;
+  }
+
   public boolean IsConnected(){
     return (input!=null);
   }
@@ -115,10 +142,15 @@ class InPin extends UIElement{
       return false;
     }
   }
+  
+  @Override
+  public void OnDrag(){
+    NodeConnectionInToOut();
+  }
 }
 
 //This is a pin that outputs a value to an input pin.
-class OutPin extends UIElement{
+class OutPin extends Pin{
   OutPin(LogicGate p){
     parent = p;
   }
@@ -130,11 +162,23 @@ class OutPin extends UIElement{
   public boolean Value(){
     return value;
   }
-  
+
+
+  @Override
+  public void OnHover(){
+    super.OnHover();
+    lastSelectedOutput = this;
+  }
+
   @Override
   public void Draw(){
     fill(Value() ? trueCol : falseCol);
     super.Draw();
+  }
+  
+  @Override
+  public void OnDrag(){
+    NodeConnectionOutToIn();
   }
   
   boolean value = false;
@@ -154,8 +198,8 @@ class LogicGate extends UIElement {
       return;
       
     dragStarted = true;
-    x+= toWorldX(mouseX)-toWorldX(pmouseX);
-    y+= toWorldY(mouseY)-toWorldY(pmouseY);
+    x+= ToWorldX(mouseX)-ToWorldX(pmouseX);
+    y+= ToWorldY(mouseY)-ToWorldY(pmouseY);
   }
   
   @Override
@@ -166,6 +210,7 @@ class LogicGate extends UIElement {
   @Override
   public void Draw(){
     fill(outputs[0].Value() ? trueCol : falseCol);
+    stroke(foregroundCol);
     super.Draw();
     textAlign(CENTER);
     fill(foregroundCol);
@@ -326,6 +371,7 @@ class StringMenu extends UIElement{
   @Override
   public void Draw(){
     noFill();
+    stroke(foregroundCol);
     super.Draw();
     fill(menuHeadingCol);
     textAlign(CENTER);
@@ -520,20 +566,20 @@ color falseCol = color(255,0,0,100);
 color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
 
-float toWorldX(float screenX){
+float ToWorldX(float screenX){
   return ((screenX-width/2)/scale)+xPos;
 }
 
-float mouseXPos(){
-  return toWorldX(mouseX);
+float MouseXPos(){
+  return ToWorldX(mouseX);
 }
 
-float toWorldY(float screenY){
+float ToWorldY(float screenY){
   return ((screenY-height/2)/scale)+yPos;
 }
 
-float mouseYPos(){
-  return toWorldY(mouseY);
+float MouseYPos(){
+  return ToWorldY(mouseY);
 }
 
 //Have some helper functions here
@@ -552,7 +598,7 @@ boolean pointInside(float mX, float mY,float x, float y, float w, float h){
 }
 
 boolean mouseInside(float x, float y, float w, float h){
-  return pointInside(toWorldX(mouseX), toWorldY(mouseY), x, y,w,h);
+  return pointInside(ToWorldX(mouseX), ToWorldY(mouseY), x, y,w,h);
 }
 
 ArrayList<LogicGate> circuit;
@@ -588,8 +634,27 @@ void AddGate(int g){
   circuit.add(lg);
 }
 
-OutPin outputToLink;
-InPin inputToLink;
+Pin lastSelectedPin;
+OutPin lastSelectedOutput = null;
+InPin lastSelectedInput = null;
+
+void ClearSelection(){
+  lastSelectedPin = null;
+  lastSelectedOutput = null;
+  lastSelectedInput = null;
+}
+
+void NodeConnectionInToOut(){
+  //lastSelectedInput = in;
+  stroke(gateHoverCol);
+  line(lastSelectedInput.WorldX(), lastSelectedInput.WorldY(), MouseXPos(), MouseYPos());
+}
+
+void NodeConnectionOutToIn(){
+  //lastSelectedOutput = out;
+  stroke(gateHoverCol);
+  line(lastSelectedOutput.WorldX(), lastSelectedOutput.WorldY(), MouseXPos(), MouseYPos());
+}
 
 void draw(){
   //UI space
@@ -597,9 +662,11 @@ void draw(){
   background(backgroundCol);
   fill(foregroundCol);
   drawCrosshair(mouseX,mouseY,10,foregroundCol);
+  /*
   text(mouseXPos(),mouseX+30,mouseY);
   text(-mouseYPos(),mouseX,mouseY-30);
   text(nf(scale,0,2)+"x",mouseX-30,mouseY+30);
+  */
   
   //World space
   translate(width/2,height/2);
@@ -619,7 +686,6 @@ void draw(){
     }
   }
   
-  noFill();
   for(LogicGate lGate : circuit){
     lGate.Draw();
   }
@@ -627,19 +693,11 @@ void draw(){
   for(UIElement element : menus){
     element.Draw();
   }
-  
-  if(inputToLink!=null){
-    drawCrosshair(inputToLink.x,inputToLink.y,10,color(255,0,0));
-  }
-  
-  if(outputToLink!=null){
-    drawCrosshair(outputToLink.x,outputToLink.y,10,color(255,0,0));
-  }
 }
 
 void mouseWheel(MouseEvent e){
-  xPos = lerp(xPos,mouseXPos(),0.1*-e.getCount());
-  yPos = lerp(yPos,mouseYPos(),0.1*-e.getCount());
+  xPos = lerp(xPos,MouseXPos(),0.1*-e.getCount());
+  yPos = lerp(yPos,MouseYPos(),0.1*-e.getCount());
   adjustView(0,0,-zoomSpeed*e.getCount());
 }
 
