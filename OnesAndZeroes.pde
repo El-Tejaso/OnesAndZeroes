@@ -650,7 +650,7 @@ class CallbackFunctionInt {
 }
 
 class StringMenu extends UIElement{
-  String[] elements;
+  ArrayList<String> elements;
   float elementHeight = 11;
   float padding = 2;
   String heading;
@@ -658,19 +658,22 @@ class StringMenu extends UIElement{
   
   public StringMenu(String[] arr, String title, CallbackFunctionInt intFunction){
     heading = title;
-    elements = arr;
+    elements = new ArrayList<String>();
+    for(String s : arr){
+      elements.add(s);
+    }
     f = intFunction;
     
     //setup the dimensions
     int max = heading.length();
-    for(String s : elements){
-      if(s.length() > max){
-        max = s.length();
+    for(Object s : elements){
+      if(s.toString().length() > max){
+        max = s.toString().length();
       }
     }
     
     w = max * 7 + 20 + 2 * padding;
-    h = (elements.length+1) * (elementHeight+padding) + padding;
+    h = (elements.size()+1) * (elementHeight+padding) + padding;
     x = w/2;
     y = h/2;
   }
@@ -685,6 +688,10 @@ class StringMenu extends UIElement{
     listClicked = false;
   }
   
+  public void AddEntry(String s){
+    elements.add(s);
+  }
+  
   boolean listClicked = false;
   
   @Override
@@ -695,7 +702,7 @@ class StringMenu extends UIElement{
     fill(menuHeadingCol);
     textAlign(CENTER);
     text(heading,WorldX(),WorldY()-h/2+elementHeight);
-    for(int i = 0; i < elements.length;i++){
+    for(int i = 0; i < elements.size();i++){
       noFill();
       float x1 = WorldX()-w/2+padding;
       float y1 = WorldY()+padding + i*(elementHeight+padding)-h/2+elementHeight;
@@ -716,16 +723,16 @@ class StringMenu extends UIElement{
     
     fill(foregroundCol);
     textAlign(CENTER);
-    for(int i = 0; i < elements.length;i++){
+    for(int i = 0; i < elements.size();i++){
       float x1 = WorldX();
       float y1 = WorldY()+ (i+1)*(elementHeight+padding)-h/2+elementHeight-padding;      
-      text(elements[i],x1,y1);
+      text(elements.get(i),x1,y1);
     }
   }
 }
 
+
 //INPUT SYSTEM copy pasted from another personal project
-//not used by the input system, but by us to do stuff only once
 boolean[] keyJustPressed = new boolean[21];
 boolean[] keyStates = new boolean[21];
 boolean keyDown(int Key) { return keyStates[Key]; }
@@ -823,6 +830,7 @@ void setup(){
   
   textFont(createFont("Monospaced",12));
   circuit = new ArrayList<LogicGate>();
+  circuitGroups = new ArrayList<LogicGateGroup>();
   deletionQueue = new ArrayList<LogicGate>();
   AddGate(0);
   
@@ -875,13 +883,24 @@ void setup(){
   UIElement outputGateAddMenu = new StringMenu(outputNames, "ADD OUTPUT GATE", new CallbackFunctionInt(){
     @Override
     public void f(int i){
-      AddDisplayGate(i);
+      AddGate(i+gateNames.length);
     }
   });
   outputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
-  
   menus.add(outputGateAddMenu);
+  
+  UIElement logicGateGroupAddMenu = new StringMenu(new String[]{}, "ADD A GROUP", new CallbackFunctionInt(){
+    @Override
+    public void f(int i){
+      AddGateGroup(i);
+    }
+  });
+  
+  logicGateGroupAddMenu.MoveTo(outputGateAddMenu.WorldX()+outputGateAddMenu.w/2f+10,0);
+  
+  menus.add(logicGateGroupAddMenu);
 }
+
 
 ArrayList<UIElement> menus;
 
@@ -934,11 +953,9 @@ boolean mouseInside(float x, float y, float w, float h){
 }
 
 ArrayList<LogicGate> circuit;
+ArrayList<LogicGateGroup> circuitGroups;
 //related to the dragging of buttons
 boolean dragStarted = false;
-
-boolean displayAddGatesMenu = false;
-float menuX=-9999999999.0, menuY;
 
 void DeleteGate(LogicGate lg){
   deletionQueue.add(lg);
@@ -958,6 +975,11 @@ void Cleanup(){
 
 String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand"};
 
+void AddGateGroup(int i){
+  
+}
+
+//This function can add every primitive gate
 void AddGate(int g){
   LogicGate lg;
   switch(g){
@@ -977,6 +999,22 @@ void AddGate(int g){
       lg = new NandGate();
       break;
     }
+    case(5):{
+      lg = new LCDGate(20,20);
+      break;
+    }
+    case(6):{
+      lg = new PixelGate(20,20);
+      break;
+    }
+    case(7):{
+      lg = new LCDGate(80,80);
+      break;
+    }
+    case(8):{
+      lg = new PixelGate(80,80);
+      break;
+    }
     default:{
       lg = new RelayGate();
       break;
@@ -988,31 +1026,6 @@ void AddGate(int g){
 }
 
 String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large"};
-void AddDisplayGate(int g){
-  LogicGate lg;
-  switch(g){
-    case(1):{
-      lg = new PixelGate(20,20);
-      break;
-    }
-    case(2):{
-      lg = new LCDGate(80,80);
-      break;
-    }
-    case(3):{
-      lg = new PixelGate(80,80);
-      break;
-    }
-    default:{
-      lg = new LCDGate(20,20);
-      break;
-    }
-  }
-
-  lg.x=lg.w;
-  lg.y=-lg.h;
-  circuit.add(lg);
-}
 
 Pin lastSelectedPin;
 OutPin lastSelectedOutput = null;
