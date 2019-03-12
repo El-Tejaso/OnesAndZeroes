@@ -1,9 +1,12 @@
 //---------A logic gate simulator----------
 //By Tejas Hegde
+//To add:
+//-Load/save circuits
+//-Composite circuits --first priority
 //-----------------------------------------
 
 //This is to prevent multiple things being dragged at once
-UIElement draggedElement = null;
+UIElement draggedElement = null; 
 
 //A rectangular UI element that all classes will derive from 
 class UIElement{
@@ -12,6 +15,7 @@ class UIElement{
   private boolean clicked = false;
   public boolean visible = true;
   protected int dragThreshold = 2;
+  protected boolean acceptUIInput = true;
   
   public void MoveTo(float x1, float y1){
     x = x1; y = y1;
@@ -31,14 +35,12 @@ class UIElement{
     return y;
   }
   
-  //this function is called every frame, and can also be used to start events
-  public void Draw(){
-    if(!visible)
+  public void UIRespond(){
+    if(!acceptUIInput)
       return;
     
     float x1 = WorldX()-w/2;
     float y1 = WorldY()-h/2; 
-    
     //handle mouse clicks in an override if we aren't clicking an in/output
     if(mouseInside(x1,y1,w,h)){
       OnHover();
@@ -77,7 +79,17 @@ class UIElement{
     if(draggedElement==this){
       OnDrag();
     }
+  }
+  
+  //this function is called every frame, and can also be used to start events
+  public void Draw(){
+    if(!visible)
+      return;
     
+    float x1 = WorldX()-w/2;
+    float y1 = WorldY()-h/2; 
+    
+    UIRespond();
     //let the input overrides determine the colour of this rectangle
     rect(x1,y1,w,h);
   }
@@ -96,7 +108,7 @@ class UIElement{
 }
 
 class Pin extends UIElement{
-  private LogicGate chip;
+  protected LogicGate chip;
   
   public boolean isDeleted(){
     return chip.deleted;
@@ -108,6 +120,7 @@ class Pin extends UIElement{
   
   Pin(LogicGate parentChip){
     chip = parentChip;
+    parent = parentChip;
     dragThreshold = -1;
   }
   
@@ -147,7 +160,6 @@ class InPin extends Pin{
   
   public InPin(LogicGate p){
     super(p);
-    parent = p;
   }
   
   public void Connect(OutPin in){
@@ -210,9 +222,12 @@ class InPin extends Pin{
 
 //This is a pin that outputs a value to an input pin.
 class OutPin extends Pin{  
-  OutPin(LogicGate p){
+  int index;
+  int getIndex(){return index;}
+  
+  OutPin(LogicGate p, int i){
     super(p);
-    parent = p;
+    index = i;
   }
   
   public void SetValue(boolean v){
@@ -220,6 +235,10 @@ class OutPin extends Pin{
       return;
       
     value = v;
+  }
+  
+  public long getChipID(){
+    return chip.getID();
   }
   
   @Override
@@ -254,13 +273,52 @@ class OutPin extends Pin{
   boolean value = false;
 }
 
+//a different number for each logic gate
+//does not need to be saved for each gate
+long logicGateID = 0;
+
 //The base class for all logic gates. contains most of the functionality
-class LogicGate extends UIElement {
+class LogicGate extends UIElement implements Comparable<LogicGate>{
   String title = "uninitializedGate";
   public boolean deleted = false;
   protected boolean showText = true;
+  private long id;
+  protected int level = 0;
   InPin[] inputs;
   OutPin[] outputs;
+  
+  int compareTo(LogicGate lg){
+    return Integer.compare(level,lg.level);
+  }
+  
+  LogicGate(){
+    id = logicGateID;
+    logicGateID++;
+  }
+  
+  public int getNumGates(){
+    return 1;
+  }
+  
+  public int getNumGates(String type){
+    if(title==type)
+      return 1;
+    return 0;
+  }
+  
+  //returns the memory address of this object as an unsigned integer
+  long getID(){
+    return id;
+  }
+  
+  int getOutputIndex(OutPin output){
+    for(int i = 0; i < outputs.length; i++){
+      if(outputs[i]==output){
+        return i;
+      }
+    }
+    return -1;
+  }
   
   void Decouple(){
     if(inputs!=null){
@@ -352,31 +410,10 @@ class LogicGate extends UIElement {
   protected void Update(){}
 }
 
-class BoolGate extends LogicGate{
-  public BoolGate(){    
-    title = "1";
-    w = 30;
-    h = 20;
-    //just one output that can be toggled
-    outputs = new OutPin[1];
-    outputs[0] = new OutPin(this);
-    outputs[0].SetValue(true);
-    outputs[0].MoveTo(w/2+outputs[0].w/2,0);
-  }
-  
-  @Override
-  void OnMouseRelease(){
-    super.OnMouseRelease();
-    if((mouseButton==LEFT)&&(draggedElement!=this)){
-      outputs[0].SetValue(!outputs[0].Value());
-      title = outputs[0].Value() ? "1" : "0";
-    }
-  }  
-}
-
 //should not be instantiated
 class BinaryGate extends LogicGate{
   public BinaryGate(){
+    super();
     w = 50; 
     h = 30;    
     
@@ -387,7 +424,7 @@ class BinaryGate extends LogicGate{
     inputs[1].MoveTo(-w/2-inputs[1].w/2,-inputs[1].h);
     
     outputs = new OutPin[1];
-    outputs[0] = new OutPin(this);
+    outputs[0] = new OutPin(this,0);
     outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
 }
@@ -418,6 +455,7 @@ class OrGate extends BinaryGate{
 
 class NotGate extends LogicGate{
   public NotGate(){
+    super();
     w=20;
     h=20;
     inputs = new InPin[1];
@@ -426,7 +464,7 @@ class NotGate extends LogicGate{
     
     title = "!";
     outputs = new OutPin[1];
-    outputs[0] = new OutPin(this);
+    outputs[0] = new OutPin(this,0);
     outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
   
@@ -451,6 +489,7 @@ class NandGate extends BinaryGate{
 
 class RelayGate extends LogicGate{
   public RelayGate(){
+    super();
     w=15;
     h=15;
     inputs = new InPin[1];
@@ -459,21 +498,32 @@ class RelayGate extends LogicGate{
     
     title = "->";
     outputs = new OutPin[1];
-    outputs[0] = new OutPin(this);
+    outputs[0] = new OutPin(this,0);
     outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
   
   @Override
+  void OnMouseRelease(){
+    super.OnMouseRelease();
+    if((mouseButton==LEFT)&&(draggedElement!=this)){
+      outputs[0].SetValue(!outputs[0].Value());
+    }
+  }  
+  
+  @Override
   protected void Update(){
-    outputs[0].SetValue(inputs[0].Value());
+    if(inputs[0].IsConnected()){
+      outputs[0].SetValue(inputs[0].Value());
+    }
   }
 }
 
 class LCDGate extends LogicGate{
   public LCDGate(float wid,float hei){
+    super();
     showText=false;
     w=wid; h=hei;
-    title = "LCD";
+    title = "LC";
     inputs = new InPin[1];
     inputs[0] = new InPin(this);
     inputs[0].MoveTo(-w/2-inputs[0].w/2,0);
@@ -490,9 +540,10 @@ class LCDGate extends LogicGate{
 
 class PixelGate extends LogicGate{
   public PixelGate(float wid, float hei){
+    super();
     w=wid; h = hei;
     showText=false;
-    title = "PXL";
+    title = "PX";
     inputs = new InPin[24];
     for(int i = 0; i < 8; i++){
       inputs[i] = new InPin(this);
@@ -531,7 +582,6 @@ class PixelGate extends LogicGate{
       }
     }
     
-    
     stroke(foregroundCol);
     fill(r,g,b);
     rect(WorldX()-w/2,WorldY()-h/2,w,h);
@@ -548,15 +598,50 @@ class PixelGate extends LogicGate{
   }
 }
 
-//someday lmao
-/*
-class CompositeLogicGate extends LogicGate {
+//*/
+//UNFINISHED
+
+class LogicGateGroup extends LogicGate{
   LogicGate[] gates;
-  public CompositeLogicGate(String script){
+  boolean expose = true;
+  int numGates;
+  LogicGateGroup(LogicGate[] gateArray){
+    gates = gateArray;
+    title = "LG";
     
+    showText = false;
+    float minX=0;
+    float maxX=1;
+    float minY=0; 
+    float maxY=1;
+    int maxAbstraction = 0; 
+    for(LogicGate lg : gates){
+      lg.acceptUIInput = false;
+      lg.parent = this;
+      minX=min(lg.x-lg.w, minX);
+      maxX = max(lg.x+lg.w, maxX);
+      minY=min(lg.y-lg.h,minY);
+      maxY=max(lg.y+lg.h,maxY);
+      maxAbstraction = max(lg.level, maxAbstraction);
+      numGates += lg.getNumGates();
+    }
+    x = (minX+maxX)/2.0;
+    y = (minY+maxY)/2.0;
+    w = maxX-minX;
+    h = maxY-minY;
+    level = maxAbstraction+1;
+  }
+  
+  @Override
+  public void Draw(){
+    super.Draw();
+    if(expose){
+      for(LogicGate lg : gates){
+        lg.Draw();
+      }
+    }
   }
 }
-*/
 
 //----------------- CUSTOM UI ELEMENTS ----------------
 //used by other ui elements
@@ -871,7 +956,7 @@ void Cleanup(){
   }
 }
 
-String gateNames[] = {"Relay point", "1/0 Out","And", "Or", "Not", "Nand"};
+String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand"};
 
 void AddGate(int g){
   LogicGate lg;
@@ -892,11 +977,8 @@ void AddGate(int g){
       lg = new NandGate();
       break;
     }
-    case(5):{
-      lg = new RelayGate();
-    }
     default:{
-      lg = new BoolGate();
+      lg = new RelayGate();
       break;
     }
   }
@@ -972,11 +1054,6 @@ void draw(){
   background(backgroundCol);
   fill(foregroundCol);
   drawCrosshair(mouseX,mouseY,10,foregroundCol);
-  /*
-  text(mouseXPos(),mouseX+30,mouseY);
-  text(-mouseYPos(),mouseX,mouseY-30);
-  text(nf(scale,0,2)+"x",mouseX-30,mouseY+30);
-  */
   
   //World space
   translate(width/2,height/2);
@@ -985,6 +1062,9 @@ void draw(){
   drawCrosshair(0,0,30,foregroundCol);
   textAlign(RIGHT);
   text("0,0", -12,12);
+  /*
+  3DCursor.Draw();
+  */
   
   if(mousePressed){
     if(mouseButton==RIGHT){
