@@ -106,7 +106,7 @@ class UIElement{
 class Pin extends UIElement{
   protected LogicGate chip;
   
-  public boolean isDeleted(){
+  public boolean IsDeleted(){
     return chip.deleted;
   }
   
@@ -120,7 +120,9 @@ class Pin extends UIElement{
   public void OnHover(){
     stroke(foregroundCol);
     rect(WorldX()-w/2+2,WorldY()-w/2+2,w-4,h-4);
-    lastSelectedPin = this;
+    if(!mousePressed){
+      lastSelectedPin = this;
+    }
   }
   
   @Override
@@ -146,7 +148,7 @@ class Pin extends UIElement{
   public boolean IsConnected(){return true;}
   
   public void OnValueChange(){
-    chip.Update();
+    chip.UpdateLogic();
   }
 }
 
@@ -166,7 +168,9 @@ class InPin extends Pin{
   @Override
   public void OnHover(){
     super.OnHover();
-    lastSelectedInput = this;
+    if(!mousePressed){
+      lastSelectedInput = this;
+    }
   }
   
   @Override
@@ -184,13 +188,14 @@ class InPin extends Pin{
   
   @Override
   void UpdatePin(){
-    if(IsConnected()){
-      if(input.isDeleted()){
+    super.UpdatePin();
+    if(input!=null){
+      if(input.IsDeleted()){
         //We need to remove all references to the deleted chip in order for the garbage collecter to collect it
         Connect(null);
+        print("yeet");
       }
     }
-    super.UpdatePin();
   }
 
   @Override
@@ -211,7 +216,14 @@ class InPin extends Pin{
   @Override
   public void OnDrag(){
     if(mouseButton==LEFT){
-      NodeConnectionInToOut(this);
+      NodeConnectionInToOut(this,false);
+    }
+  }
+  
+  @Override
+  public void OnMouseRelease(){
+    if(mouseButton==LEFT){
+      NodeConnectionInToOut(this,true);
     }
   }
 }
@@ -227,7 +239,7 @@ class OutPin extends Pin{
   }
   
   public void SetValue(boolean v){
-    if(isDeleted())
+    if(IsDeleted())
       return;
       
     value = v;
@@ -245,7 +257,9 @@ class OutPin extends Pin{
   @Override
   public void OnHover(){
     super.OnHover();
-    lastSelectedOutput = this;
+    if(!mousePressed){
+      lastSelectedOutput = this;
+    }
   }
 
   @Override
@@ -262,7 +276,14 @@ class OutPin extends Pin{
   @Override
   public void OnDrag(){
     if(mouseButton==LEFT){
-      NodeConnectionOutToIn(this);
+      NodeConnectionOutToIn(this,false);
+    }
+  }
+  
+  @Override
+  public void OnMouseRelease(){
+    if(mouseButton==LEFT){
+      NodeConnectionOutToIn(this,true);
     }
   }
   
@@ -355,6 +376,7 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
       fill(foregroundCol);
       text(title,WorldX(),WorldY());
     }
+    
     stroke(foregroundCol);
     if(inputs!=null){
       for(int i = 0; i < inputs.length; i++){
@@ -394,7 +416,21 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   //will involve setting outputs in overrides, which should cause a cascading change
-  protected void Update(){}
+  protected void UpdateLogic(){}
+  
+  public void UpdateIOPins(){
+    if(inputs!=null){
+      for(InPin in : inputs){
+        in.UpdatePin();
+      }
+    }
+    
+    if(outputs!=null){
+      for(OutPin out : outputs){
+        out.UpdatePin();
+      }
+    }
+  }
 }
 
 //should not be instantiated
@@ -423,7 +459,7 @@ class AndGate extends BinaryGate{
   }
   
   @Override
-  protected void Update(){
+  protected void UpdateLogic(){
     outputs[0].SetValue(inputs[0].Value() && inputs[1].Value());
   }
 }
@@ -435,7 +471,7 @@ class OrGate extends BinaryGate{
   }
   
   @Override
-  protected void Update(){
+  protected void UpdateLogic(){
     outputs[0].SetValue(inputs[0].Value() || inputs[1].Value());
   }
 }
@@ -456,7 +492,7 @@ class NotGate extends LogicGate{
   }
   
   @Override
-  protected void Update(){
+  protected void UpdateLogic(){
     outputs[0].SetValue(!inputs[0].Value());
   }
 }
@@ -468,7 +504,7 @@ class NandGate extends BinaryGate{
   }
   
   @Override
-  protected void Update(){
+  protected void UpdateLogic(){
     outputs[0].SetValue(!(inputs[0].Value() && inputs[1].Value()));
   }
 }
@@ -498,7 +534,7 @@ class RelayGate extends LogicGate{
   }  
   
   @Override
-  protected void Update(){
+  protected void UpdateLogic(){
     if(inputs[0].IsConnected()){
       outputs[0].SetValue(inputs[0].Value());
     }
@@ -1024,17 +1060,21 @@ void ClearSelection(){
   lastSelectedInput = null;
 }
 
-void NodeConnectionInToOut(InPin in){
+void NodeConnectionInToOut(InPin in,boolean connect){
   stroke(gateHoverCol);
   line(in.WorldX(), in.WorldY(), MouseXPos(), MouseYPos());
+  if(!connect)
+    return;
   if(lastSelectedOutput!=null){
     in.Connect(lastSelectedOutput);
   }
 }
 
-void NodeConnectionOutToIn(OutPin out){
+void NodeConnectionOutToIn(OutPin out,boolean connect){
   stroke(gateHoverCol);
   line(out.WorldX(), out.WorldY(), MouseXPos(), MouseYPos());
+  if(!connect)
+    return;
   if(lastSelectedInput!=null){
     lastSelectedInput.Connect(out);
   }
@@ -1079,6 +1119,7 @@ void draw(){
   cursorOverDragableObject=false;
   for(LogicGate lGate : circuit){
     lGate.Draw();
+    lGate.UpdateIOPins();
   }
   
   for(UIElement element : menus){
