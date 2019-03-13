@@ -45,7 +45,7 @@ class UIElement{
       OnHover();
       if(mousePressed){
         if(!clicked){
-          OnMouseClick();
+          OnMousePress();
           clicked=true;
         } else {
           if(!(draggedElement==this))
@@ -66,7 +66,9 @@ class UIElement{
     } else {
       if(clicked){
         clicked = false;
-        OnMouseRelease();
+        if(!mousePressed){
+          OnMouseRelease();
+        }
       }
       
       if(draggedElement==this){
@@ -90,7 +92,7 @@ class UIElement{
     rect(x1,y1,w,h);
   }
   
-  public void OnMouseClick(){}
+  public void OnMousePress(){}
   
   public void OnMouseRelease(){}
   
@@ -168,9 +170,6 @@ class InPin extends Pin{
   @Override
   public void OnHover(){
     super.OnHover();
-    if(!mousePressed){
-      lastSelectedInput = this;
-    }
   }
   
   @Override
@@ -216,14 +215,16 @@ class InPin extends Pin{
   @Override
   public void OnDrag(){
     if(mouseButton==LEFT){
-      NodeConnectionInToOut(this,false);
+      lastSelectedInput = this;
+      stroke(gateHoverCol);
+      line(WorldX(), WorldY(), MouseXPos(), MouseYPos());
     }
   }
   
   @Override
   public void OnMouseRelease(){
     if(mouseButton==LEFT){
-      NodeConnectionInToOut(this,true);
+      MakeConnection(lastSelectedOutput, this);
     }
   }
 }
@@ -276,14 +277,16 @@ class OutPin extends Pin{
   @Override
   public void OnDrag(){
     if(mouseButton==LEFT){
-      NodeConnectionOutToIn(this,false);
+      lastSelectedOutput = this;
+      stroke(gateHoverCol);
+      line(WorldX(), WorldY(), MouseXPos(), MouseYPos());
     }
   }
   
   @Override
   public void OnMouseRelease(){
     if(mouseButton==LEFT){
-      NodeConnectionOutToIn(this,true);
+      MakeConnection(this, lastSelectedInput);
     }
   }
   
@@ -1060,24 +1063,12 @@ void ClearSelection(){
   lastSelectedInput = null;
 }
 
-void NodeConnectionInToOut(InPin in,boolean connect){
-  stroke(gateHoverCol);
-  line(in.WorldX(), in.WorldY(), MouseXPos(), MouseYPos());
-  if(!connect)
+void MakeConnection(OutPin from, InPin to){
+  if(from==null)
     return;
-  if(lastSelectedOutput!=null){
-    in.Connect(lastSelectedOutput);
-  }
-}
-
-void NodeConnectionOutToIn(OutPin out,boolean connect){
-  stroke(gateHoverCol);
-  line(out.WorldX(), out.WorldY(), MouseXPos(), MouseYPos());
-  if(!connect)
+  if(to==null)
     return;
-  if(lastSelectedInput!=null){
-    lastSelectedInput.Connect(out);
-  }
+  to.Connect(from);
 }
 
 boolean cursorOverDragableObject = false;
