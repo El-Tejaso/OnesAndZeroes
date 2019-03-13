@@ -13,7 +13,6 @@ class UIElement{
   protected UIElement parent;
   public float x,y,w=5,h=5;
   private boolean clicked = false;
-  public boolean visible = true;
   protected int dragThreshold = 2;
   protected boolean acceptUIInput = true;
   
@@ -82,10 +81,7 @@ class UIElement{
   }
   
   //this function is called every frame, and can also be used to start events
-  public void Draw(){
-    if(!visible)
-      return;
-    
+  public void Draw(){    
     float x1 = WorldX()-w/2;
     float y1 = WorldY()-h/2; 
     
