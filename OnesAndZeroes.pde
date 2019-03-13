@@ -110,10 +110,6 @@ class Pin extends UIElement{
     return chip.deleted;
   }
   
-  public void Update(){
-    chip.Update();
-  }
-  
   Pin(LogicGate parentChip){
     chip = parentChip;
     parent = parentChip;
@@ -131,20 +127,24 @@ class Pin extends UIElement{
   public void Draw(){
     stroke(foregroundCol);
     if(IsConnected()){
-      if(Value()!=lastValue){
-        OnValueChange();
-      }
       fill(Value() ? trueCol : falseCol);
-      lastValue = Value();
     } else {
       noFill();
     }
     super.Draw();
   }
   
+  public void UpdatePin(){
+    if(Value()!=lastValue){
+      OnValueChange();
+    }
+    lastValue = Value();
+  }
+  
   boolean lastValue = false;
   public boolean Value(){return false;}
   public boolean IsConnected(){return true;}
+  
   public void OnValueChange(){
     chip.Update();
   }
@@ -160,7 +160,7 @@ class InPin extends Pin{
   
   public void Connect(OutPin in){
     input = in;
-    Update();
+    OnValueChange();
   }
 
   @Override
@@ -183,14 +183,14 @@ class InPin extends Pin{
   }
   
   @Override
-  public void OnValueChange(){
+  void UpdatePin(){
     if(IsConnected()){
       if(input.isDeleted()){
         //We need to remove all references to the deleted chip in order for the garbage collecter to collect it
         Connect(null);
       }
     }
-    Update();
+    super.UpdatePin();
   }
 
   @Override
@@ -322,15 +322,6 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
         p.Connect(null);
       }
     }
-    
-    //change their value to trigger an automatic decoupling
-    if(outputs!=null){
-      for(OutPin p : outputs){
-        p.SetValue(!p.Value());
-      }
-    }
-    
-    deleted = true;
   }
   
   @Override
