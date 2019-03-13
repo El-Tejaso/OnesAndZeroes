@@ -188,7 +188,7 @@ class InPin extends Pin{
   @Override
   void UpdatePin(){
     super.UpdatePin();
-    if(input!=null){
+    if(IsConnected()){
       if(input.IsDeleted()){
         //We need to remove all references to the deleted chip in order for the garbage collecter to collect it
         Connect(null);
@@ -304,7 +304,20 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   private long id;
   protected int level = 0;
   InPin[] inputs;
+  void ArrangeInputs(){
+    for(int i = 0; i < inputs.length; i++){
+      inputs[i].x = -w/2-inputs[i].w/2;
+      inputs[i].y = -h/2.0 + h*((float)(i+1)/((float)inputs.length+1));
+    }
+  }
+  
   OutPin[] outputs;
+  void ArrangeOutputs(){
+    for(int i = 0; i < outputs.length; i++){
+      outputs[i].x = w/2+outputs[i].w/2;
+      outputs[i].y = -h/2.0 + h*((float)(i+1)/((float)outputs.length+1));
+    }
+  }
   
   int compareTo(LogicGate lg){
     return Integer.compare(level,lg.level);
@@ -445,13 +458,18 @@ class BinaryGate extends LogicGate{
     
     inputs = new InPin[2];
     inputs[0] = new InPin(this);
+    inputs[1] = new InPin(this);
+    /*
+    inputs[0] = new InPin(this);
     inputs[0].MoveTo(-w/2-inputs[0].w/2,inputs[0].h);
     inputs[1] = new InPin(this);
     inputs[1].MoveTo(-w/2-inputs[1].w/2,-inputs[1].h);
+    */
+    ArrangeInputs();
     
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this,0);
-    outputs[0].MoveTo(w/2+outputs[0].w/2,0);
+    ArrangeOutputs();
   }
 }
 
@@ -650,11 +668,24 @@ class LogicGateGroup extends LogicGate{
       maxY=max(lg.y+lg.h,maxY);
       maxAbstraction = max(lg.level, maxAbstraction);
       numGates += lg.getNumGates();
+      
+      ArrayList<InPin> temp = new ArrayList<InPin>();
+      //expose inputs
+      for(InPin p : lg.inputs){
+        if(!p.IsConnected()){
+          temp.add(p);
+        }
+      }
+      
+      inputs = temp.toArray(new InPin[temp.size()]);
     }
+    
     x = (minX+maxX)/2.0;
     y = (minY+maxY)/2.0;
     w = maxX-minX;
     h = maxY-minY;
+    
+    ArrangeInputs();
     level = maxAbstraction+1;
   }
   
