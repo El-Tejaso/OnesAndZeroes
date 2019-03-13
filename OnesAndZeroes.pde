@@ -192,7 +192,6 @@ class InPin extends Pin{
       if(input.IsDeleted()){
         //We need to remove all references to the deleted chip in order for the garbage collecter to collect it
         Connect(null);
-        print("yeet");
       }
     }
   }
@@ -341,6 +340,7 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   void Decouple(){
+    deleted = true;
     if(inputs!=null){
       for(InPin p : inputs){
         p.Connect(null);
@@ -994,6 +994,7 @@ void Cleanup(){
   if(deletionQueue.size()>0){
     for(LogicGate lg : deletionQueue){
       circuit.remove(lg);
+      lg.Decouple();
     }
     deletionQueue.clear();
   }
