@@ -5,9 +5,10 @@
 //-Composite circuits --first priority
 //-----------------------------------------
 
+//Putting these here cause you cant make static vars in processing
 //This is to prevent multiple things being dragged at once
 UIElement draggedElement = null; 
-
+boolean mouseOver = false;
 //A rectangular UI element that all classes will derive from 
 class UIElement{
   protected UIElement parent;
@@ -43,6 +44,7 @@ class UIElement{
     //handle mouse clicks in an override if we aren't clicking an in/output
     if(mouseInside(x1,y1,w,h)){
       OnHover();
+      mouseOver = true;
       if(mousePressed){
         if(!clicked){
           OnMousePress();
@@ -207,7 +209,7 @@ class InPin extends Pin{
   
   @Override
   public void OnDragStart(){
-    ClearSelection();
+    ClearPinSelection();
     Connect(null);
   }
   
@@ -270,7 +272,7 @@ class OutPin extends Pin{
   
   @Override
   public void OnDragStart(){
-    ClearSelection();
+    ClearPinSelection();
   }
   
   @Override
@@ -328,11 +330,11 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
     logicGateID++;
   }
   
-  public int getNumGates(){
+  public int NumGates(){
     return 1;
   }
   
-  public int getNumGates(String type){
+  public int NumGates(String type){
     if(title==type)
       return 1;
     return 0;
@@ -421,7 +423,7 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
     if(mouseButton==RIGHT){
       deleteTimer += TWO_PI/60.0;
       if(deleteTimer > TWO_PI){
-        DeleteGate(this);
+        DeleteGates(this);
       }
     }
   }
@@ -667,7 +669,7 @@ class LogicGateGroup extends LogicGate{
       minY=min(lg.y-lg.h,minY);
       maxY=max(lg.y+lg.h,maxY);
       maxAbstraction = max(lg.level, maxAbstraction);
-      numGates += lg.getNumGates();
+      numGates += lg.NumGates();
       
       ArrayList<InPin> temp = new ArrayList<InPin>();
       //expose inputs
@@ -679,6 +681,7 @@ class LogicGateGroup extends LogicGate{
       
       inputs = temp.toArray(new InPin[temp.size()]);
     }
+    fill(255,0,0);
     
     x = (minX+maxX)/2.0;
     y = (minY+maxY)/2.0;
@@ -766,6 +769,7 @@ class StringMenu extends UIElement{
       float w1 = w-2*padding;
       float h1 = elementHeight;
       if(mouseInside(x1,y1,w1,h1)){
+        mouseOver = true;
         fill(gateHoverCol);
         if(mousePressed && (mouseButton==LEFT)){
           noFill();
@@ -790,8 +794,8 @@ class StringMenu extends UIElement{
 
 
 //INPUT SYSTEM copy pasted from another personal project
-boolean[] keyJustPressed = new boolean[21];
-boolean[] keyStates = new boolean[21];
+boolean[] keyJustPressed = new boolean[22];
+boolean[] keyStates = new boolean[22];
 boolean keyDown(int Key) { return keyStates[Key]; }
 boolean keyPushed(int Key){
   if(!keyDown(Key))
@@ -825,6 +829,7 @@ final int NKey = 17;
 final int TabKey = 18;
 final int FSlashKey = 19;
 final int TKey = 20;
+final int GKey = 21;
 
 boolean shiftChanged = false;
 //maps the processing keys to integers in our key state array, so we can add new keys as we please
@@ -889,8 +894,10 @@ void setup(){
   circuit = new ArrayList<LogicGate>();
   circuitGroups = new ArrayList<LogicGateGroup>();
   deletionQueue = new ArrayList<LogicGate>();
+  selection = new ArrayList<LogicGate>();
   AddGate(0);
   
+  //setup the input system
   keyMappings.put('a', AKey);
   keyMappings.put('A', AKey);
   keyMappings.put('s', SKey);
@@ -926,6 +933,8 @@ void setup(){
   keyMappings.put('t', TKey);
   keyMappings.put('T', TKey);
   keyMappings.put(' ', SpaceKey);
+  keyMappings.put('g',GKey);
+  keyMappings.put('G',GKey);
   
   menus = new ArrayList<UIElement>();
   UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
@@ -1014,25 +1023,59 @@ ArrayList<LogicGateGroup> circuitGroups;
 //related to the dragging of buttons
 boolean dragStarted = false;
 
-void DeleteGate(LogicGate lg){
+void DeleteGates(LogicGate lg){
   deletionQueue.add(lg);
   lg.Decouple();
+}
+
+void DeleteGates(LogicGate[] lg){
+  for(LogicGate g : lg){
+    deletionQueue.add(g);
+    g.Decouple();
+  }
 }
 
 ArrayList<LogicGate> deletionQueue;
 
 void Cleanup(){
   if(deletionQueue.size()>0){
+    /*
+    for(int i = 0; i < circuit.size(); i++){
+      for(LogicGate lg : deletionQueue){
+        if(circuit.get(i)==lg){
+          circuit.remove(i);
+          i--;
+          break;
+        }
+      }
+    }
+    */
     for(LogicGate lg : deletionQueue){
       circuit.remove(lg);
       lg.Decouple();
     }
     deletionQueue.clear();
+    
+    ClearGateSelection();
   }
 }
 
 String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand"};
 
+//creates a new group from the selected elements
+void CreateNewGroup(){
+  if(numSelected <= 1)
+    return;
+  if(selection.size()<=1)
+    return;
+    
+  LogicGate[] gates = selection.toArray(new LogicGate[selection.size()]);
+  LogicGateGroup g = new LogicGateGroup(gates);
+  circuit.add(g);
+  DeleteGates(gates);
+}
+
+//soon my brodas, soon
 void AddGateGroup(int i){
   
 }
@@ -1078,8 +1121,8 @@ void AddGate(int g){
       break;
     }
   }
-  lg.x=lg.w;
-  lg.y=-lg.h;
+  lg.x=cursor.WorldX();
+  lg.y=cursor.WorldY();
   circuit.add(lg);
 }
 
@@ -1089,10 +1132,15 @@ Pin lastSelectedPin;
 OutPin lastSelectedOutput = null;
 InPin lastSelectedInput = null;
 
-void ClearSelection(){
+void ClearPinSelection(){
   lastSelectedPin = null;
   lastSelectedOutput = null;
   lastSelectedInput = null;
+}
+
+void ClearGateSelection(){
+  selection.clear();
+  numSelected = 0;
 }
 
 void MakeConnection(OutPin from, InPin to){
@@ -1105,7 +1153,59 @@ void MakeConnection(OutPin from, InPin to){
 
 boolean cursorOverDragableObject = false;
 
+ArrayList<LogicGate> selection;
+int numSelected = 0;
+//2D cursor. will be used to make selections
+class Cursor2D extends UIElement{
+  float xBounds = 0;
+  float yBounds = 0;
+  boolean cursorPlaced = false;
+  
+  @Override
+  public void Draw(){
+    w=20.0/scale;
+    h=w;
+    stroke(foregroundCol);
+    noFill();
+    ellipse(WorldX(),WorldY(),w,w);
+    drawCrosshair(WorldX(),WorldY(),w);
+    UIRespond();
+  }
+  
+  @Override
+  public void OnDragStart(){
+    Reset();
+  }
+  
+  @Override
+  public void OnDrag(){
+    float dX = ToWorldX(mouseX)-ToWorldX(pmouseX);
+    float dY = ToWorldY(mouseY)-ToWorldY(pmouseY);
+    xBounds += dX;
+    yBounds += dY;
+  }
+  
+  public void Place(float x1, float y1){
+    if(draggedElement!=this){
+      x=x1; y=y1;
+    }
+  }
+  
+  public void DrawSelect(){
+    rect(WorldX(),WorldY(),xBounds,yBounds);
+  }
+  
+  public void Reset(){
+    xBounds = 0;
+    yBounds = 0;
+  }
+}
+
+Cursor2D cursor = new Cursor2D();
 void draw(){
+  //needs to be manually reset
+  mouseOver = false;
+  
   if(cursorOverDragableObject){
     cursor(MOVE);
   } else {
@@ -1116,28 +1216,24 @@ void draw(){
   dragStarted = false;
   background(backgroundCol);
   fill(foregroundCol);
-  drawCrosshair(mouseX,mouseY,10,foregroundCol);
+  stroke(foregroundCol);
+  drawCrosshair(mouseX,mouseY,10);
+  
+  if(numSelected > 0){
+    textAlign(LEFT);
+    text("Selected: "+numSelected+" primitive gates",0,10);
+  }
   
   //World space
   translate(width/2,height/2);
   scale(scale);
   translate(-xPos,-yPos);
-  drawCrosshair(0,0,30,foregroundCol);
+  drawCrosshair(0,0,30);
   textAlign(RIGHT);
   text("0,0", -12,12);
   /*
   3DCursor.Draw();
   */
-  
-  if(mousePressed){
-    if(mouseButton==RIGHT){
-      float xAmount = mouseX-pmouseX;
-      float yAmount = mouseY-pmouseY;
-      adjustView(-xAmount,-yAmount,0);
-    } else {
-      //drag the logic gates around or open up some sort of menu
-    }
-  }
   
   cursorOverDragableObject=false;
   for(LogicGate lGate : circuit){
@@ -1149,8 +1245,64 @@ void draw(){
     element.Draw();
   }
   
+  if(mousePressed){
+    if(mouseButton==RIGHT){
+      float xAmount = mouseX-pmouseX;
+      float yAmount = mouseY-pmouseY;
+      adjustView(-xAmount,-yAmount,0);
+    } else {
+      if(!((draggedElement!=null)||(mouseOver))){
+        cursor.Place(MouseXPos(),MouseYPos());
+      }
+      
+      if(draggedElement==cursor){
+        noFill();
+        cursor.DrawSelect();
+        ClearGateSelection();
+        fill(255,0,0);
+        for(LogicGate lgate : circuit){
+          float x1 = cursor.WorldX();
+          float y1 = cursor.WorldY();
+          float w1 = cursor.xBounds;
+          float h1 = cursor.yBounds;
+          if(w1<0){
+            x1+=w1; w1=-w1;
+          }
+          if(h1<0){
+            y1+=h1; h1=-h1;
+          }
+          
+          if(pointInside(lgate.WorldX(),lgate.WorldY(),x1,y1,w1,h1)){
+            selection.add(lgate);
+            numSelected+= lgate.NumGates();
+          }
+        }
+        //drag the logic gates around or open up some sort of menu
+      } else {
+        cursor.Reset();
+        ClearGateSelection();
+      }
+    }
+  }
+  
+  cursor.Draw();
+  
+  for(LogicGate lGate : selection){
+    stroke(255,0,0);
+    drawCrosshair(lGate.WorldX(),lGate.WorldY(),max(10.0/scale,lGate.w));
+  }
+  
+  //handle all key shortcuts
+  if(keyDown(ShiftKey)){
+    if(keyPushed(GKey)){
+      CreateNewGroup();
+    }
+  }
+  
   Cleanup();
+  
 }
+
 
 void mouseWheel(MouseEvent e){
   xPos = lerp(xPos,MouseXPos(),0.1*-e.getCount());
@@ -1158,8 +1310,7 @@ void mouseWheel(MouseEvent e){
   adjustView(0,0,-zoomSpeed*e.getCount());
 }
 
-void drawCrosshair(float x,float y, float r, color col){
-  stroke(col);
+void drawCrosshair(float x,float y, float r){
   line(x-r,y,x+r,y);
   line(x,y-r,x,y+r);
 }
