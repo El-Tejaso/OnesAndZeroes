@@ -897,10 +897,24 @@ class LogicGateGroup extends LogicGate{
       for(InPin p : lg.inputs){
         if(!p.IsConnected()){
           temp.add(p);
-          //Only changes the UI parent and not the connected logic chip
           p.parent = this;
         } else {
-          usedOutputs.add(p.input);
+          //we need to check if it is connected to an output from the outside the group
+          LogicGate lg2 = p.input.chip;
+          boolean found = false;
+          for(LogicGate lg3 : gates){
+            if(lg2==lg3){
+              found = true;
+              break;
+            }
+          }
+          
+          if(!found){
+            temp.add(p);
+            p.parent = this;
+          } else {
+            usedOutputs.add(p.input);
+          }
         }
       }
     }
@@ -942,6 +956,14 @@ class LogicGateGroup extends LogicGate{
       for(LogicGate lg : gates){
         lg.Draw();
       }
+    }
+  }
+  
+  @Override
+  public void Decouple(){
+    super.Decouple();
+    for(LogicGate lg : gates){
+      lg.Decouple();
     }
   }
   
