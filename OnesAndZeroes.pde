@@ -233,7 +233,7 @@ class InPin extends Pin{
 //This is a pin that outputs a value to an input pin.
 class OutPin extends Pin{  
   int index;
-  int getIndex(){return index;}
+  int Index(){return index;}
   
   OutPin(LogicGate p, int i){
     super(p);
@@ -247,8 +247,8 @@ class OutPin extends Pin{
     value = v;
   }
   
-  public long getChipID(){
-    return chip.getID();
+  public long ChipID(){
+    return chip.ID();
   }
   
   @Override
@@ -299,7 +299,7 @@ class OutPin extends Pin{
 long logicGateID = 0;
 
 //The base class for all logic gates. contains most of the functionality
-class LogicGate extends UIElement implements Comparable<LogicGate>{
+abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   String title = "uninitializedGate";
   public boolean deleted = false;
   protected boolean showText = true;
@@ -307,6 +307,10 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   private long id;
   protected int level = 0;
   InPin[] inputs;
+  
+  //This will be set by any function traversing a list of logicgates
+  public int arrayIndex;
+  
   void ArrangeInputs(){
     if(inputs==null)
       return;
@@ -347,11 +351,11 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   //returns the memory address of this object as an unsigned integer
-  long getID(){
+  public long ID(){
     return id;
   }
   
-  int getOutputIndex(OutPin output){
+  public int OutputIndex(OutPin output){
     for(int i = 0; i < outputs.length; i++){
       if(outputs[i]==output){
         return i;
@@ -360,12 +364,24 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
     return -1;
   }
   
-  void Decouple(){
+  public void Decouple(){
     deleted = true;
     if(inputs!=null){
       for(InPin p : inputs){
         p.Connect(null);
       }
+    }
+  }
+  
+  public abstract LogicGate CopySelf();
+  
+  //won't work if the gates are of different kinds
+  public void CopyValues(LogicGate other){
+    x = other.x;
+    y = other.y;
+    parent = other.parent;
+    for(int i = 0; i < inputs.length; i++){
+      inputs[i].Connect(other.inputs[i].input);
     }
   }
   
@@ -376,9 +392,18 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
       if(dragStarted)
         return;
         
+      float dX = ToWorldX(mouseX)-ToWorldX(pmouseX);
+      float dY = ToWorldY(mouseY)-ToWorldY(pmouseY);
       dragStarted = true;
-      x+= ToWorldX(mouseX)-ToWorldX(pmouseX);
-      y+= ToWorldY(mouseY)-ToWorldY(pmouseY);
+      if(selection.size()==0){
+        x+= dX;
+        y+= dY;
+      } else {
+        for(int i = 0; i < selection.size(); i++){
+          selection.get(i).x += dX;
+          selection.get(i).y += dY;
+        }
+      }
     }
   }
   
@@ -463,7 +488,7 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
 }
 
 //should not be instantiated
-class BinaryGate extends LogicGate{
+abstract class BinaryGate extends LogicGate{
   public BinaryGate(){
     super();
     w = 50; 
@@ -496,6 +521,13 @@ class AndGate extends BinaryGate{
   protected void UpdateLogic(){
     outputs[0].SetValue(inputs[0].Value() && inputs[1].Value());
   }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new AndGate();
+    lg.CopyValues(this);
+    return lg;
+  }
 }
 
 class OrGate extends BinaryGate{
@@ -507,6 +539,13 @@ class OrGate extends BinaryGate{
   @Override
   protected void UpdateLogic(){
     outputs[0].SetValue(inputs[0].Value() || inputs[1].Value());
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new OrGate();
+    lg.CopyValues(this);
+    return lg;
   }
 }
 
@@ -529,6 +568,13 @@ class NotGate extends LogicGate{
   protected void UpdateLogic(){
     outputs[0].SetValue(!inputs[0].Value());
   }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new NotGate();
+    lg.CopyValues(this);
+    return lg;
+  }
 }
 
 class NandGate extends BinaryGate{
@@ -540,6 +586,13 @@ class NandGate extends BinaryGate{
   @Override
   protected void UpdateLogic(){
     outputs[0].SetValue(!(inputs[0].Value() && inputs[1].Value()));
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new NandGate();
+    lg.CopyValues(this);
+    return lg;
   }
 }
 
@@ -573,6 +626,13 @@ class RelayGate extends LogicGate{
       outputs[0].SetValue(inputs[0].Value());
     }
   }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new RelayGate();
+    lg.CopyValues(this);
+    return lg;
+  }
 }
 
 class LCDGate extends LogicGate{
@@ -592,6 +652,13 @@ class LCDGate extends LogicGate{
     stroke(foregroundCol);
     fill(inputs[0].Value() ? foregroundCol : backgroundCol);
     rect(WorldX()-w/2,WorldY()-h/2,w,h);
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new LCDGate(w,h);
+    lg.CopyValues(this);
+    return lg;
   }
 }
 
@@ -620,6 +687,13 @@ class PixelGate extends LogicGate{
       inputs[i].h = inputs[i].w;
       inputs[i].MoveTo(-w/2.0+inputs[i].w/2.0 + (i-16)*inputs[i].w, h/2.0 + inputs[i].h/2.0);
     }
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new PixelGate(w,h);
+    lg.CopyValues(this);
+    return lg;
   }
   
   public void Draw(){
@@ -748,6 +822,36 @@ class LogicGateGroup extends LogicGate{
     for(LogicGate lg : gates){
       lg.UpdateIOPins();
     }
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate[] newGates = new LogicGate[gates.length];
+    for(int i = 0; i < gates.length; i++){
+      newGates[i] = gates[i].CopySelf();
+      if(gates[i].inputs!=null){
+      //we need to know what their array positions are in order to do the next part
+      gates[i].arrayIndex = i;
+      }
+    }
+    //make the connections copied -> copied instead of original -> copied
+    for(int i = 0; i < gates.length; i++){
+      for(int j = 0; j < gates[i].inputs.length; j++){
+        //get the output gate from our gates 
+        if(!gates[i].inputs[j].IsConnected())
+          continue;
+        LogicGate outputLg = gates[i].inputs[j].input.chip; 
+        int gateIndex = outputLg.arrayIndex;
+        int outputIndex = outputLg.OutputIndex(gates[i].inputs[j].input);
+        InPin copiedInput = newGates[i].inputs[j]; 
+        OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
+        copiedInput.Connect(copiedOutput);
+      }
+    }
+    
+    LogicGate copy = new LogicGateGroup(newGates);
+    
+    return copy;
   }
 }
 
@@ -1125,6 +1229,23 @@ void CreateNewGroup(){
   }
 }
 
+//Copies the selection
+void Duplicate(){
+  if(selection.size()==0)
+    return;
+  
+  float xOffset = cursor.WorldX() - selection.get(0).WorldX();
+  float yOffset = cursor.WorldY() - selection.get(0).WorldY();
+  
+  
+  for(LogicGate lg : selection){
+    LogicGate copy = lg.CopySelf();
+    copy.x+=xOffset;
+    copy.y+=yOffset;
+    circuit.add(copy);
+  }
+}
+
 //soon my brodas, soon
 void AddGateGroup(int i){
   
@@ -1300,13 +1421,14 @@ void draw(){
     } else {
       if(!((draggedElement!=null)||(mouseOver))){
         cursor.Place(MouseXPos(),MouseYPos());
+        ClearGateSelection();
       }
       
       if(draggedElement==cursor){
         noFill();
         cursor.DrawSelect();
-        ClearGateSelection();
         fill(255,0,0);
+        ClearGateSelection();
         for(LogicGate lgate : circuit){
           float x1 = cursor.WorldX();
           float y1 = cursor.WorldY();
@@ -1324,10 +1446,8 @@ void draw(){
             numSelected+= lgate.NumGates();
           }
         }
-        //drag the logic gates around or open up some sort of menu
       } else {
         cursor.Reset();
-        ClearGateSelection();
       }
     }
   }
@@ -1343,6 +1463,8 @@ void draw(){
   if(keyDown(ShiftKey)){
     if(keyPushed(GKey)){
       CreateNewGroup();
+    } else if(keyPushed(DKey)){
+      Duplicate();
     }
   }
   
