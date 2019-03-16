@@ -759,21 +759,24 @@ class LogicGateGroup extends LogicGate{
     //find the bounding box for the group
     //also find the abstraction level
     //also find exposed input pins
+    
     float minX=gates[0].x;
     float maxX=gates[0].x;
     float minY=gates[0].y; 
     float maxY=gates[0].y;
+    
     int maxAbstraction = 0; 
     ArrayList<InPin> temp = new ArrayList<InPin>();
     ArrayList<OutPin> usedOutputs = new ArrayList<OutPin>();
     for(LogicGate lg : gates){
       lg.drawPins = true;
       lg.acceptUIInput = false;
-      lg.parent = this;
+      
       minX=min(lg.x-lg.w/2-5, minX);
       maxX = max(lg.x+lg.w/2+5, maxX);
       minY=min(lg.y-lg.h/2-5,minY);
       maxY=max(lg.y+lg.h/2+5,maxY);
+      lg.parent = this;
       maxAbstraction = max(lg.level, maxAbstraction);
       numGates += lg.NumGates();
       
@@ -799,8 +802,8 @@ class LogicGateGroup extends LogicGate{
     //and also find all the unlinked outputs
     ArrayList<OutPin> unusedOutputs = new ArrayList<OutPin>();
     for(LogicGate lg : gates){
-      lg.x-=x;
-      lg.y-=y;
+      lg.x -= x;
+      lg.y -= y;
       if(lg.outputs!=null){
         for(OutPin p : lg.outputs){
           if(!usedOutputs.contains(p)){
@@ -838,7 +841,9 @@ class LogicGateGroup extends LogicGate{
   
   @Override
   public LogicGate CopySelf(){
-    return new LogicGateGroup(CopyPreservingConnections(gates));
+    LogicGate lg = new LogicGateGroup(CopyPreservingConnections(gates));
+    lg.CopyValues(this);
+    return lg;
   }
 }
 
@@ -1226,12 +1231,14 @@ void Duplicate(){
     selection.add(lg);
     circuit.add(lg);      
   }
+  /*
   float xOffset = cursor.WorldX() - newGates[0].WorldX();
   float yOffset = cursor.WorldY() - newGates[0].WorldY();
   for(LogicGate lg : newGates){
     lg.x += xOffset;
     lg.y += yOffset;      
   }
+  */
 }
 
 //soon my brodas, soon
