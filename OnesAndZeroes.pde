@@ -732,10 +732,47 @@ class PixelGate extends LogicGate{
 //*/
 //UNFINISHED
 
+//Makes sure that the copied gates aren't connected to the old ones
+LogicGate[] CopyPreservingConnections(LogicGate[] gates){
+  LogicGate[] newGates = new LogicGate[gates.length];
+  
+  for(int i = 0; i < gates.length; i++){
+    newGates[i] = gates[i].CopySelf();
+    if(gates[i].inputs!=null){
+    //we need to know what their array positions are in order to do the next part
+    gates[i].arrayIndex = i;
+    }
+  }
+  //make the connections copied -> copied instead of original -> copied
+  for(int i = 0; i < gates.length; i++){
+    for(int j = 0; j < gates[i].inputs.length; j++){
+      //get the output gate from our gates 
+      if(!gates[i].inputs[j].IsConnected())
+        continue;
+      LogicGate outputLg = gates[i].inputs[j].input.chip; 
+      int gateIndex = outputLg.arrayIndex;
+      int outputIndex = outputLg.OutputIndex(gates[i].inputs[j].input);
+      InPin copiedInput = newGates[i].inputs[j]; 
+      OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
+      copiedInput.Connect(copiedOutput);
+    }
+  }
+  
+  return newGates;
+}
+
 class LogicGateGroup extends LogicGate{
   LogicGate[] gates;
   boolean expose = true;
   int numGates;
+  @Override
+  int NumGates(){
+    int sum = 0;
+    for(LogicGate lg : gates){
+      sum += lg.NumGates();
+    }
+    return sum;
+  }
   
   //creates a group using an array of existing gates (they can also be groups themselves :0)
   //exposes all unlinked inputs and outputs
@@ -826,32 +863,7 @@ class LogicGateGroup extends LogicGate{
   
   @Override
   public LogicGate CopySelf(){
-    LogicGate[] newGates = new LogicGate[gates.length];
-    for(int i = 0; i < gates.length; i++){
-      newGates[i] = gates[i].CopySelf();
-      if(gates[i].inputs!=null){
-      //we need to know what their array positions are in order to do the next part
-      gates[i].arrayIndex = i;
-      }
-    }
-    //make the connections copied -> copied instead of original -> copied
-    for(int i = 0; i < gates.length; i++){
-      for(int j = 0; j < gates[i].inputs.length; j++){
-        //get the output gate from our gates 
-        if(!gates[i].inputs[j].IsConnected())
-          continue;
-        LogicGate outputLg = gates[i].inputs[j].input.chip; 
-        int gateIndex = outputLg.arrayIndex;
-        int outputIndex = outputLg.OutputIndex(gates[i].inputs[j].input);
-        InPin copiedInput = newGates[i].inputs[j]; 
-        OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
-        copiedInput.Connect(copiedOutput);
-      }
-    }
-    
-    LogicGate copy = new LogicGateGroup(newGates);
-    
-    return copy;
+    return new LogicGateGroup(CopyPreservingConnections(gates));
   }
 }
 
@@ -1227,6 +1239,8 @@ void CreateNewGroup(){
   for(LogicGate lg: gates){
     circuit.remove(lg);
   }
+  
+  ClearGateSelection();
 }
 
 //Copies the selection
