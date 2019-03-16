@@ -297,6 +297,7 @@ class OutPin extends Pin{
 //a different number for each logic gate
 //does not need to be saved for each gate
 long logicGateID = 0;
+LogicGate gateUnderMouse = null;
 
 //The base class for all logic gates. contains most of the functionality
 abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
@@ -410,7 +411,7 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   @Override
   public void OnHover(){
     fill(gateHoverCol);
-    cursorOverDragableObject = true;
+    gateUnderMouse = this;
   }
   
   @Override
@@ -443,30 +444,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
         }
       }
     }
-    
-    if(deleteTimer > 0.01f){
-      noFill();
-      stroke(warningCol);
-      arc(WorldX(),WorldY(),2*w,2*w,0,deleteTimer);
-      fill(255,0,0);
-      text("deleting...",WorldX(),WorldY()+h+10);
-    }
-  }
-  
-  float deleteTimer = 0;
-  @Override
-  void OnMouseDown(){
-    if(mouseButton==RIGHT){
-      deleteTimer += TWO_PI/60.0;
-      if(deleteTimer > TWO_PI){
-        DeleteGates(this);
-      }
-    }
-  }
-  
-  @Override
-  void OnMouseRelease(){
-    deleteTimer = 0;
   }
   
   //will involve setting outputs in overrides, which should cause a cascading change
@@ -729,9 +706,6 @@ class PixelGate extends LogicGate{
   }
 }
 
-//*/
-//UNFINISHED
-
 //Makes sure that the copied gates aren't connected to the old ones
 LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   LogicGate[] newGates = new LogicGate[gates.length];
@@ -743,6 +717,7 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
     gates[i].arrayIndex = i;
     }
   }
+  
   //make the connections copied -> copied instead of original -> copied
   for(int i = 0; i < gates.length; i++){
     for(int j = 0; j < gates[i].inputs.length; j++){
@@ -784,15 +759,15 @@ class LogicGateGroup extends LogicGate{
     //find the bounding box for the group
     //also find the abstraction level
     //also find exposed input pins
-    float minX=gates[0].WorldX();
-    float maxX=gates[0].WorldX();
-    float minY=gates[0].WorldY(); 
-    float maxY=gates[0].WorldY();
+    float minX=gates[0].x;
+    float maxX=gates[0].x;
+    float minY=gates[0].y; 
+    float maxY=gates[0].y;
     int maxAbstraction = 0; 
     ArrayList<InPin> temp = new ArrayList<InPin>();
     ArrayList<OutPin> usedOutputs = new ArrayList<OutPin>();
     for(LogicGate lg : gates){
-      lg.drawPins = false;
+      lg.drawPins = true;
       lg.acceptUIInput = false;
       lg.parent = this;
       minX=min(lg.x-lg.w/2-5, minX);
@@ -1187,9 +1162,17 @@ ArrayList<LogicGateGroup> circuitGroups;
 //related to the dragging of buttons
 boolean dragStarted = false;
 
+//deletes the given gate, else deletes everything that's selected
 void DeleteGates(LogicGate lg){
-  deletionQueue.add(lg);
-  lg.Decouple();
+  if(selection.size()==0){
+    deletionQueue.add(lg);
+    lg.Decouple();
+  } else {
+    for(LogicGate selectedGate : selection){
+      deletionQueue.add(selectedGate);
+      selectedGate.Decouple();
+    }
+  }
 }
 
 void DeleteGates(LogicGate[] lg){
@@ -1203,17 +1186,6 @@ ArrayList<LogicGate> deletionQueue;
 
 void Cleanup(){
   if(deletionQueue.size()>0){
-    /*
-    for(int i = 0; i < circuit.size(); i++){
-      for(LogicGate lg : deletionQueue){
-        if(circuit.get(i)==lg){
-          circuit.remove(i);
-          i--;
-          break;
-        }
-      }
-    }
-    */
     for(LogicGate lg : deletionQueue){
       circuit.remove(lg);
       lg.Decouple();
@@ -1247,16 +1219,18 @@ void CreateNewGroup(){
 void Duplicate(){
   if(selection.size()==0)
     return;
-  
-  float xOffset = cursor.WorldX() - selection.get(0).WorldX();
-  float yOffset = cursor.WorldY() - selection.get(0).WorldY();
-  
-  
-  for(LogicGate lg : selection){
-    LogicGate copy = lg.CopySelf();
-    copy.x+=xOffset;
-    copy.y+=yOffset;
-    circuit.add(copy);
+    
+  LogicGate[] newGates = CopyPreservingConnections(selection.toArray(new LogicGate[selection.size()]));
+  selection.clear();
+  for(LogicGate lg : newGates){
+    selection.add(lg);
+    circuit.add(lg);      
+  }
+  float xOffset = cursor.WorldX() - newGates[0].WorldX();
+  float yOffset = cursor.WorldY() - newGates[0].WorldY();
+  for(LogicGate lg : newGates){
+    lg.x += xOffset;
+    lg.y += yOffset;      
   }
 }
 
@@ -1336,8 +1310,6 @@ void MakeConnection(OutPin from, InPin to){
   to.Connect(from);
 }
 
-boolean cursorOverDragableObject = false;
-
 ArrayList<LogicGate> selection;
 int numSelected = 0;
 //2D cursor. will be used to make selections
@@ -1387,15 +1359,38 @@ class Cursor2D extends UIElement{
 }
 
 Cursor2D cursor = new Cursor2D();
-void draw(){
-  //needs to be manually reset
-  mouseOver = false;
+
+
+float deleteTimer = 0;
+void IncrementDeleteTimer(float x, float y, float w, float h, LogicGate lg){
+  deleteTimer += TAU/60.0;
+  if(deleteTimer > 0.01f){
+    noFill();
+    stroke(warningCol);
+    strokeWeight(3);
+    arc(x,y,2*w,2*w,0,deleteTimer);
+    strokeWeight(1);
+    fill(255,0,0);
+    text("deleting...",x,y+h+10);
+  }
   
-  if(cursorOverDragableObject){
+  if(deleteTimer > TAU){
+    deleteTimer = 0;
+    DeleteGates(lg);
+  }
+}
+
+
+void draw(){
+  if(gateUnderMouse!=null){
     cursor(MOVE);
   } else {
     noCursor();
   }
+  
+  //needs to be manually reset
+  mouseOver = false;
+  gateUnderMouse = null;
   
   //UI space
   dragStarted = false;
@@ -1407,6 +1402,7 @@ void draw(){
   if(numSelected > 0){
     textAlign(LEFT);
     text("Selected: "+numSelected+" primitive gates",0,10);
+    text("Selected: "+selection.size()+" groups",0,20);
   }
   
   //World space
@@ -1417,7 +1413,7 @@ void draw(){
   textAlign(RIGHT);
   text("0,0", -12,12);
   
-  cursorOverDragableObject=false;
+  
   for(LogicGate lGate : circuit){
     lGate.Draw();
     lGate.UpdateIOPins();
@@ -1432,6 +1428,10 @@ void draw(){
       float xAmount = mouseX-pmouseX;
       float yAmount = mouseY-pmouseY;
       adjustView(-xAmount,-yAmount,0);
+      
+      if(gateUnderMouse!=null){
+        IncrementDeleteTimer(gateUnderMouse.x, gateUnderMouse.y,40,gateUnderMouse.h, gateUnderMouse);
+      }
     } else {
       if(!((draggedElement!=null)||(mouseOver))){
         cursor.Place(MouseXPos(),MouseYPos());
@@ -1464,6 +1464,8 @@ void draw(){
         cursor.Reset();
       }
     }
+  } else {
+    deleteTimer = 0;
   }
   
   cursor.Draw();
@@ -1483,7 +1485,6 @@ void draw(){
   }
   
   Cleanup();
-  
 }
 
 
