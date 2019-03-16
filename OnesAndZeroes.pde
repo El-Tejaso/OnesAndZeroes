@@ -5,6 +5,8 @@
 //-Composite circuits --first priority
 //-----------------------------------------
 
+final int TEXTSIZE = 12;
+
 //Putting these here cause you cant make static vars in processing
 //This is to prevent multiple things being dragged at once
 UIElement draggedElement = null; 
@@ -573,6 +575,68 @@ class NandGate extends BinaryGate{
   }
 }
 
+class Ticker extends LogicGate{
+  public Ticker(){
+    super();
+    title = "ticc";
+    showText = false;
+    inputs = new InPin[16];
+    w = 50;
+    h = 50;
+    for(int i = 0; i < inputs.length; i++){
+      inputs[i]=new InPin(this);
+      inputs[i].w = w/16.0;
+      inputs[i].h = inputs[i].w;
+      inputs[i].MoveTo(-w/2-inputs[i].w/2, -h/2 + inputs[0].h/2 + i * inputs[i].h); 
+    }
+    
+    outputs = new OutPin[1];
+    outputs[0] = new OutPin(this,0);
+    ArrangeOutputs();
+  }
+  
+  int phase = 0;
+  int ticks = 0;
+  @Override
+  public void UpdateIOPins(){
+    super.UpdateIOPins();
+    phase ++;
+    if(phase > ticks){
+      outputs[0].SetValue(true);
+      phase = 0;
+    } else {
+      outputs[0].SetValue(false);
+    }
+  }
+  
+  @Override
+  public void Draw(){
+    super.Draw();
+    fill(foregroundCol);
+    textAlign(CENTER);
+    text("t: "+phase,WorldX(),WorldY()-6);
+    text("tn: "+ticks,WorldX(),WorldY()+6);
+  }
+  
+  @Override
+  protected void UpdateLogic(){
+    ticks = 0;
+    for(int i = 0; i < inputs.length; i++){
+      if(inputs[i].Value()){
+        ticks += pow(2,i);
+      }
+    }
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    Ticker lg = new Ticker();
+    lg.CopyValues(this);
+    lg.ticks = ticks;
+    lg.phase = phase;
+    return lg;
+  }
+}
 
 class RelayGate extends LogicGate{
   public RelayGate(){
@@ -634,6 +698,53 @@ class LCDGate extends LogicGate{
   @Override
   public LogicGate CopySelf(){
     LogicGate lg = new LCDGate(w,h);
+    lg.CopyValues(this);
+    return lg;
+  }
+}
+
+class Base10Gate extends LogicGate{
+  public Base10Gate(){
+    super();
+    showText=false;
+    w=200; h=20;
+    title = "Num";
+    inputs = new InPin[32];
+    for(int i = 0; i < 32; i++){
+      inputs[i]=new InPin(this);
+      inputs[i].w = w/32.0;
+      inputs[i].h = inputs[i].w;
+      inputs[i].MoveTo(-w/2 + i * inputs[i].w + inputs[0].w/2,h/2+inputs[i].h/2); 
+    }
+  }
+  String number = "0";
+  
+  @Override
+  public void Draw(){
+    noFill();
+    super.Draw();
+    stroke(foregroundCol);
+    textAlign(CENTER);
+    textSize(20);
+    fill(0,225,0);
+    text(number,WorldX(),WorldY()+h/4);
+    textSize(TEXTSIZE);
+  }
+  
+  @Override
+  void UpdateLogic(){
+    long num = 0;
+    for(int i = 0; i < inputs.length; i++){
+      if(inputs[i].Value()){
+        num += pow(2,i);
+      }
+    }
+    number = str(num);
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new Base10Gate();
     lg.CopyValues(this);
     return lg;
   }
@@ -702,9 +813,11 @@ class PixelGate extends LogicGate{
       text((int)pow(2,i), inputs[i+8].WorldX(),inputs[i+8].WorldY());
       text((int)pow(2,i), inputs[i+16].WorldX(),inputs[i+16].WorldY());
     }
-    textSize(12);
+    textSize(TEXTSIZE);
   }
 }
+
+
 
 //Makes sure that the copied gates aren't connected to the old ones
 LogicGate[] CopyPreservingConnections(LogicGate[] gates){
@@ -1034,7 +1147,7 @@ float dragDelta = 0;
 void setup(){
   size(800,600);
   
-  textFont(createFont("Monospaced",12));
+  textFont(createFont("Monospaced",TEXTSIZE));
   circuit = new ArrayList<LogicGate>();
   circuitGroups = new ArrayList<LogicGateGroup>();
   deletionQueue = new ArrayList<LogicGate>();
@@ -1202,8 +1315,6 @@ void Cleanup(){
   }
 }
 
-String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand"};
-
 //creates a new group from the selected elements
 void CreateNewGroup(){
   if(numSelected <= 1)
@@ -1232,14 +1343,6 @@ void Duplicate(){
     selection.add(lg);
     circuit.add(lg);      
   }
-  /*
-  float xOffset = cursor.WorldX() - newGates[0].WorldX();
-  float yOffset = cursor.WorldY() - newGates[0].WorldY();
-  for(LogicGate lg : newGates){
-    lg.x += xOffset;
-    lg.y += yOffset;      
-  }
-  */
 }
 
 //soon my brodas, soon
@@ -1247,40 +1350,67 @@ void AddGateGroup(int i){
   
 }
 
+String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large","Base 10 readout"};
+String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand","Ticker"};
+final int INPUTGATE = 0;
+final int ANDGATE = 1;
+final int ORGATE = 2;
+final int NOTGATE = 3;
+final int NANDGATE = 4;
+final int TICKER = 5;
+final int LCDGATE = TICKER + 1;
+final int PIXELGATE = TICKER + 2;
+final int LLCDGATE = TICKER + 3;
+final int LPIXELGATE = TICKER + 4;
+final int BASE10GATE = TICKER + 5;
+
+
 //This function can add every primitive gate
 void AddGate(int g){
   LogicGate lg;
   switch(g){
-    case(1):{
+    case(INPUTGATE): {
+      lg = new RelayGate();
+      break;
+    }
+    case(ANDGATE):{
       lg = new AndGate();
       break;
     }
-    case(2):{
+    case(ORGATE):{
       lg = new OrGate();
       break;
     }
-    case(3):{
+    case(NOTGATE):{
       lg = new NotGate();
       break;
     }
-    case(4):{
+    case(NANDGATE):{
       lg = new NandGate();
       break;
     }
-    case(5):{
+    case(TICKER):{
+      lg = new Ticker();
+      break;
+    }
+    case(LCDGATE):{
       lg = new LCDGate(20,20);
       break;
     }
-    case(6):{
+    case(PIXELGATE):{
       lg = new PixelGate(20,20);
       break;
     }
-    case(7):{
+    case(LLCDGATE):{
       lg = new LCDGate(80,80);
       break;
     }
-    case(8):{
+    case(LPIXELGATE):{
       lg = new PixelGate(80,80);
+      break;
+    }
+    case (BASE10GATE):{
+      lg = new Base10Gate();
       break;
     }
     default:{
@@ -1292,8 +1422,6 @@ void AddGate(int g){
   lg.y=cursor.WorldY();
   circuit.add(lg);
 }
-
-String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large"};
 
 Pin lastSelectedPin;
 OutPin lastSelectedOutput = null;
@@ -1307,8 +1435,14 @@ void ConnectSelected(){
       p.Connect(null);
     }
   }
-  for(int i = 0; i < selectedInputs.size(); i++){
-    MakeConnection(selectedOutputs.get(i%selectedOutputs.size()),selectedInputs.get(i));
+  if(selectedOutputs.size()>0){
+    for(int i = 0; i < selectedInputs.size(); i++){
+      MakeConnection(selectedOutputs.get(i%selectedOutputs.size()),selectedInputs.get(i));
+    }
+  } else {
+    for(int i = 0; i < selectedInputs.size(); i++){
+      MakeConnection(null,selectedInputs.get(i));
+    }
   }
 }
 
@@ -1435,7 +1569,7 @@ void draw(){
   translate(-xPos,-yPos);
   drawCrosshair(0,0,30);
   textAlign(RIGHT);
-  text("0,0", -12,12);
+  text("0,0", -TEXTSIZE,TEXTSIZE);
   
   
   for(LogicGate lGate : circuit){
