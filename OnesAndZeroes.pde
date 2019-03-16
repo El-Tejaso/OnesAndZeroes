@@ -1198,6 +1198,7 @@ void Cleanup(){
     deletionQueue.clear();
     
     ClearGateSelection();
+    ClearPinSelection();
   }
 }
 
@@ -1297,11 +1298,26 @@ String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-
 Pin lastSelectedPin;
 OutPin lastSelectedOutput = null;
 InPin lastSelectedInput = null;
+ArrayList<OutPin> selectedOutputs = new ArrayList<OutPin>();
+ArrayList<InPin> selectedInputs = new ArrayList<InPin>();
+void ConnectSelected(){
+  int n = min(selectedInputs.size(),selectedOutputs.size());
+  if(n==0){
+    for(InPin p : selectedInputs){
+      p.Connect(null);
+    }
+  }
+  for(int i = 0; i < selectedInputs.size(); i++){
+    MakeConnection(selectedOutputs.get(i%selectedOutputs.size()),selectedInputs.get(i));
+  }
+}
 
 void ClearPinSelection(){
   lastSelectedPin = null;
   lastSelectedOutput = null;
   lastSelectedInput = null;
+  selectedOutputs.clear();
+  selectedInputs.clear();
 }
 
 void ClearGateSelection(){
@@ -1367,7 +1383,6 @@ class Cursor2D extends UIElement{
 
 Cursor2D cursor = new Cursor2D();
 
-
 float deleteTimer = 0;
 void IncrementDeleteTimer(float x, float y, float w, float h, LogicGate lg){
   deleteTimer += TAU/60.0;
@@ -1406,10 +1421,12 @@ void draw(){
   stroke(foregroundCol);
   drawCrosshair(mouseX,mouseY,10);
   
+  textAlign(LEFT);
   if(numSelected > 0){
-    textAlign(LEFT);
-    text("Selected: "+numSelected+" primitive gates",0,10);
-    text("Selected: "+selection.size()+" groups",0,20);
+    text("Selected gates: "+numSelected+" primitive, "+selection.size()+" groups",0,10);
+  }
+  if((selectedInputs.size()+selectedOutputs.size())>0){
+    text("Selected IO: "+selectedInputs.size()+" input nodes, "+selectedOutputs.size()+" output nodes",0,20);
   }
   
   //World space
@@ -1442,29 +1459,56 @@ void draw(){
     } else {
       if(!((draggedElement!=null)||(mouseOver))){
         cursor.Place(MouseXPos(),MouseYPos());
-        ClearGateSelection();
+        if(!keyDown(ShiftKey)){
+          ClearGateSelection();
+          ClearPinSelection();
+        }
       }
       
+      //Object selection logic
       if(draggedElement==cursor){
         noFill();
         cursor.DrawSelect();
-        fill(255,0,0);
-        ClearGateSelection();
-        for(LogicGate lgate : circuit){
-          float x1 = cursor.WorldX();
-          float y1 = cursor.WorldY();
-          float w1 = cursor.xBounds;
-          float h1 = cursor.yBounds;
-          if(w1<0){
+        
+        //Select gates
+        float x1 = cursor.WorldX();
+        float y1 = cursor.WorldY();
+        float w1 = cursor.xBounds;
+        float h1 = cursor.yBounds;
+        if(w1<0){
             x1+=w1; w1=-w1;
-          }
-          if(h1<0){
-            y1+=h1; h1=-h1;
+        }
+        if(h1<0){
+          y1+=h1; h1=-h1;
+        }
+        
+        for(LogicGate lgate : circuit){
+          if(pointInside(lgate.WorldX(),lgate.WorldY(),x1,y1,w1,h1)){
+            if(!selection.contains(lgate)){
+              selection.add(lgate);
+              numSelected+= lgate.NumGates();
+            }
           }
           
-          if(pointInside(lgate.WorldX(),lgate.WorldY(),x1,y1,w1,h1)){
-            selection.add(lgate);
-            numSelected+= lgate.NumGates();
+          //Select pins while looking at this gate
+          if(lgate.inputs!=null){
+            for(InPin p : lgate.inputs){
+              if(pointInside(p.WorldX(), p.WorldY(),x1,y1,w1,h1)){
+                if(!selectedInputs.contains(p)){
+                  selectedInputs.add(p);
+                }
+              }
+            }
+          }
+          
+          if(lgate.outputs!=null){
+            for(OutPin p : lgate.outputs){
+              if(pointInside(p.WorldX(), p.WorldY(),x1,y1,w1,h1)){
+                if(!selectedOutputs.contains(p)){
+                  selectedOutputs.add(p);
+                }
+              }
+            }
           }
         }
       } else {
@@ -1482,18 +1526,45 @@ void draw(){
     drawCrosshair(lGate.WorldX(),lGate.WorldY(),max(10.0/scale,lGate.w));
   }
   
+  strokeWeight(2);
+  stroke(0,255,255);
+  int i = 0;
+  for(InPin p : selectedInputs){
+    drawArrow(p.WorldX(), p.WorldY(),10,-1,false);
+    text(i,p.WorldX(), p.WorldY());
+    i++;
+  }
+  stroke(255,255,0);
+  i = 0;
+  for(OutPin p : selectedOutputs){
+    drawArrow(p.WorldX(), p.WorldY(),10,-1,false);
+    text(i,p.WorldX(), p.WorldY());
+    i++;
+  }
+  strokeWeight(1);
   //handle all key shortcuts
   if(keyDown(ShiftKey)){
     if(keyPushed(GKey)){
       CreateNewGroup();
     } else if(keyPushed(DKey)){
       Duplicate();
+    } else if(keyPushed(CKey)){
+      ConnectSelected();
     }
   }
   
   Cleanup();
 }
 
+void drawArrow(float x, float y, float size, int dir, boolean vertical){
+  if(vertical){
+    line(x,y,x-dir*size,y+dir*size);
+    line(x,y,x+dir*size,y+dir*size);
+  } else {
+    line(x,y,x+dir*size,y+dir*size);
+    line(x,y,x+dir*size,y-dir*size);
+  }
+}
 
 void mouseWheel(MouseEvent e){
   xPos = lerp(xPos,MouseXPos(),0.1*-e.getCount());
