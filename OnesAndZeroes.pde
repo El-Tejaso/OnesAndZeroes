@@ -303,10 +303,14 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   String title = "uninitializedGate";
   public boolean deleted = false;
   protected boolean showText = true;
+  boolean drawPins = true;
   private long id;
   protected int level = 0;
   InPin[] inputs;
   void ArrangeInputs(){
+    if(inputs==null)
+      return;
+    
     for(int i = 0; i < inputs.length; i++){
       inputs[i].x = -w/2-inputs[i].w/2;
       inputs[i].y = -h/2.0 + h*((float)(i+1)/((float)inputs.length+1));
@@ -315,6 +319,8 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   
   OutPin[] outputs;
   void ArrangeOutputs(){
+    if(outputs==null)
+      return;
     for(int i = 0; i < outputs.length; i++){
       outputs[i].x = w/2+outputs[i].w/2;
       outputs[i].y = -h/2.0 + h*((float)(i+1)/((float)outputs.length+1));
@@ -385,7 +391,9 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
   @Override
   public void Draw(){
     if(outputs!=null){
-      fill(outputs[0].Value() ? trueCol : falseCol);
+      if(outputs.length>0){
+        fill(outputs[0].Value() ? trueCol : falseCol);
+      }
     }
     stroke(foregroundCol);
     super.Draw();
@@ -396,15 +404,18 @@ class LogicGate extends UIElement implements Comparable<LogicGate>{
     }
     
     stroke(foregroundCol);
-    if(inputs!=null){
-      for(int i = 0; i < inputs.length; i++){
-        inputs[i].Draw();
-      }
-    }
     
-    if(outputs!=null){
-      for(int i = 0; i < outputs.length; i++){
-        outputs[i].Draw();
+    if(drawPins){
+      if(inputs!=null){
+        for(int i = 0; i < inputs.length; i++){
+          inputs[i].Draw();
+        }
+      }
+      
+      if(outputs!=null){
+        for(int i = 0; i < outputs.length; i++){
+          outputs[i].Draw();
+        }
       }
     }
     
@@ -651,54 +662,91 @@ class LogicGateGroup extends LogicGate{
   LogicGate[] gates;
   boolean expose = true;
   int numGates;
+  
+  //creates a group using an array of existing gates (they can also be groups themselves :0)
+  //exposes all unlinked inputs and outputs
   LogicGateGroup(LogicGate[] gateArray){
     gates = gateArray;
     title = "LG";
-    
     showText = false;
-    float minX=0;
-    float maxX=1;
-    float minY=0; 
-    float maxY=1;
+    
+    //find the bounding box for the group
+    //also find the abstraction level
+    //also find exposed input pins
+    float minX=gates[0].WorldX();
+    float maxX=gates[0].WorldX();
+    float minY=gates[0].WorldY(); 
+    float maxY=gates[0].WorldY();
     int maxAbstraction = 0; 
+    ArrayList<InPin> temp = new ArrayList<InPin>();
+    ArrayList<OutPin> usedOutputs = new ArrayList<OutPin>();
     for(LogicGate lg : gates){
+      lg.drawPins = false;
       lg.acceptUIInput = false;
       lg.parent = this;
-      minX=min(lg.x-lg.w, minX);
-      maxX = max(lg.x+lg.w, maxX);
-      minY=min(lg.y-lg.h,minY);
-      maxY=max(lg.y+lg.h,maxY);
+      minX=min(lg.x-lg.w/2-5, minX);
+      maxX = max(lg.x+lg.w/2+5, maxX);
+      minY=min(lg.y-lg.h/2-5,minY);
+      maxY=max(lg.y+lg.h/2+5,maxY);
       maxAbstraction = max(lg.level, maxAbstraction);
       numGates += lg.NumGates();
       
-      ArrayList<InPin> temp = new ArrayList<InPin>();
       //expose inputs
       for(InPin p : lg.inputs){
         if(!p.IsConnected()){
           temp.add(p);
+          //Only changes the UI parent and not the connected logic chip
+          p.parent = this;
+        } else {
+          usedOutputs.add(p.input);
         }
       }
-      
-      inputs = temp.toArray(new InPin[temp.size()]);
     }
-    fill(255,0,0);
     
     x = (minX+maxX)/2.0;
     y = (minY+maxY)/2.0;
     w = maxX-minX;
     h = maxY-minY;
+    inputs = temp.toArray(new InPin[temp.size()]);
+    
+    //make the x and y positions of the gates relative to this
+    //and also find all the unlinked outputs
+    ArrayList<OutPin> unusedOutputs = new ArrayList<OutPin>();
+    for(LogicGate lg : gates){
+      lg.x-=x;
+      lg.y-=y;
+      if(lg.outputs!=null){
+        for(OutPin p : lg.outputs){
+          if(!usedOutputs.contains(p)){
+            unusedOutputs.add(p);
+            p.parent = this;
+          }
+        }
+      }
+    }
+    outputs = unusedOutputs.toArray(new OutPin[unusedOutputs.size()]);
     
     ArrangeInputs();
+    ArrangeOutputs();
     level = maxAbstraction+1;
   }
   
   @Override
   public void Draw(){
+    noFill();
     super.Draw();
+    
     if(expose){
       for(LogicGate lg : gates){
         lg.Draw();
       }
+    }
+  }
+  
+  @Override
+  public void UpdateIOPins(){
+    for(LogicGate lg : gates){
+      lg.UpdateIOPins();
     }
   }
 }
@@ -1072,7 +1120,9 @@ void CreateNewGroup(){
   LogicGate[] gates = selection.toArray(new LogicGate[selection.size()]);
   LogicGateGroup g = new LogicGateGroup(gates);
   circuit.add(g);
-  DeleteGates(gates);
+  for(LogicGate lg: gates){
+    circuit.remove(lg);
+  }
 }
 
 //soon my brodas, soon
@@ -1231,9 +1281,6 @@ void draw(){
   drawCrosshair(0,0,30);
   textAlign(RIGHT);
   text("0,0", -12,12);
-  /*
-  3DCursor.Draw();
-  */
   
   cursorOverDragableObject=false;
   for(LogicGate lGate : circuit){
