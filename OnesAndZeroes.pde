@@ -233,13 +233,9 @@ class InPin extends Pin{
 }
 
 //This is a pin that outputs a value to an input pin.
-class OutPin extends Pin{  
-  int index;
-  int Index(){return index;}
-  
-  OutPin(LogicGate p, int i){
+class OutPin extends Pin{    
+  OutPin(LogicGate p){
     super(p);
-    index = i;
   }
   
   public void SetValue(boolean v){
@@ -376,9 +372,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     if(outputs!=null){
       for(int i = 0; i < outputs.length;i++){
         s+= outputs[i].Value() ? "1" : "0";
-        if(i<outputs.length-1){
-          s+=",";
-        }
       }
     }
     s+=")";
@@ -398,12 +391,9 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
           s+= out.chip.arrayIndex;
           s+=",";
           s+= out.chip.OutputIndex(out);
-        } else {
-          s+= "O";//for "Outside"
         }
-      } else {
-        s+="N";//for "Null"
       }
+      
       s+="]";
     }
     return s;
@@ -529,7 +519,7 @@ abstract class BinaryGate extends LogicGate{
     ArrangeInputs();
     
     outputs = new OutPin[1];
-    outputs[0] = new OutPin(this,0);
+    outputs[0] = new OutPin(this);
     ArrangeOutputs();
   }
 }
@@ -593,7 +583,7 @@ class NotGate extends LogicGate{
     
     title = "!";
     outputs = new OutPin[1];
-    outputs[0] = new OutPin(this,0);
+    outputs[0] = new OutPin(this);
     outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
   
@@ -655,7 +645,7 @@ class Ticker extends LogicGate{
     }
     
     outputs = new OutPin[1];
-    outputs[0] = new OutPin(this,0);
+    outputs[0] = new OutPin(this);
     ArrangeOutputs();
   }
   
@@ -718,7 +708,7 @@ class RelayGate extends LogicGate{
     
     title = ">";
     outputs = new OutPin[1];
-    outputs[0] = new OutPin(this,0);
+    outputs[0] = new OutPin(this);
     outputs[0].MoveTo(w/2+outputs[0].w/2,0);
   }
   
@@ -962,10 +952,29 @@ void LoadProject(String filename){
   }
   String data = file[1];
   LogicGate[] loadedGates = RecursiveLoad(data);
+  circuit = new ArrayList<LogicGate>();
+  for(LogicGate lg : loadedGates){
+    circuit.add(lg);
+  }
 }
 
+//tf is this hackerrank? this is definately one of those questions you would find there lmao
+int findCorrespondingBracket(String data, int start, int end, char openBrace, char closeBrace){
+  int sum = 0;
+  for(int i = start; i < end; i++){
+    if(data.charAt(i)==openBrace){
+      sum++;
+    } else if(data.charAt(i)==closeBrace){
+      sum--;
+    }
+    if(sum==0)
+      return i;
+  }
+  return -1;
+}
+
+//Load all the parts in a string into an array
 LogicGate[] RecursiveLoad(String data){
-  //Load all the parts
   int partsIndex = data.lastIndexOf('|');
   int start = data.indexOf('{');
   int end = data.indexOf(',',start+1);
@@ -975,7 +984,9 @@ LogicGate[] RecursiveLoad(String data){
   for(int i =  0; i < n; i++){
     start = data.indexOf('(',end);
     if(data.charAt(start+1)=='{'){
-      //Find the end of this part and recursive load it
+      //Find the end of this part and recursive load the {} bit and then it's metadata with LoadGroup
+      end = findCorrespondingBracket(data,start,data.length(), '(', ')');
+      loaded[i] = LoadGroup(data,start,end);
     } else {
       end = data.indexOf(')',start+1);
       //Normal load it since it's just a primitive
@@ -985,16 +996,83 @@ LogicGate[] RecursiveLoad(String data){
   
   //Connect all the parts we just loaded
   start = partsIndex;
+  for(int i =  0; i < n; i++){
+    start = data.indexOf('<',start)+1;
+    end = data.indexOf('>',start);
+    int gateIndex = int(data.substring(start,end));
+    int start2 = start;
+    int end2 = start;
+    for(int j = 0; j < loaded[gateIndex].inputs.length;j++){
+      start2 = data.indexOf('[',start2)+1;
+      end2 = data.indexOf(']',start2);
+      
+      //Continue if no connections
+      if(data.charAt(start2)==']'){
+        continue;
+      }
+      
+      //else make the connections
+      int div = data.indexOf(',',start2);
+      int outputGateIndex = int(data.substring(start2,div));
+      int outputIndex = int(data.substring(div+1,end2));
+      loaded[gateIndex].inputs[j].Connect(loaded[outputGateIndex].outputs[outputIndex]);
+    }
+  }
   
   return loaded;
 }
 
-LogicGate LoadPart(String data, int start, int end){
-  
+//assigns a part's outputs. not to be called on it's own
+void assignOutputs(LogicGate lg, String outputs){
+  if(lg.outputs==null)
+    return;
+  for(int i = 0; i < outputs.length(); i++){
+    lg.outputs[i].SetValue((outputs.charAt(i)=='1'));
+  }
 }
 
-LogicGate RecursiveLoadPart(String data, int start, int end){
+//assigns a group it's x,y,w,h values and inputs. start is the index of the start of the first value, and end is the ). not to be called on it's own
+void loadMetadata(LogicGate lg, String data, int start, int end){
+  int a = start;
+  int b = data.indexOf(',',a+1);
+  lg.x = float(data.substring(a,b));
+  a = b+1;
+  b = data.indexOf(',',a);
+  lg.y = float(data.substring(a,b));
 
+  a=b+1;
+  if(data.charAt(a)=='O'){
+    assignOutputs(lg,data.substring(a+1,end));
+  }
+  //otherwise we have to load in the width and height and then do so
+  b = data.indexOf(',',a);
+  lg.w = float(data.substring(a,b));
+  a = b+1;
+  b = data.indexOf(',',a);
+  lg.h = float(data.substring(a,b));
+  assignOutputs(lg,data.substring(a+1,end));
+}
+
+//loads a primitive part from a string.
+//where start is the ( and end is the )
+LogicGate LoadPart(String data, int start, int end){
+  int a = start+1;
+  int b = data.indexOf(',',a);
+  LogicGate lg = CreateGate(int(data.substring(a,b)));
+  a = b+1;
+  loadMetadata(lg,data,a, end);
+  return lg;
+}
+
+//Loads a group. start is the opening (, and end is the ). Groups can have more groups. The base case would be a regular LoadPart
+LogicGate LoadGroup(String data, int start, int end){
+  int partEnd = findCorrespondingBracket(data,start+1,end,'{','}')+1; 
+  //Connections are resolved in here
+  LogicGate[] gates = RecursiveLoad(data.substring(start+1,partEnd));
+  LogicGate lg = new LogicGateGroup(gates);
+  start = partEnd + 1;
+  loadMetadata(lg,data,start,end);
+  return lg;
 }
 
 void SaveProject(String filename){
@@ -1008,13 +1086,14 @@ String CircuitString(ArrayList<LogicGate> cir){
   return s;
 }
 
-//memory usage might kill us
 String GateString(LogicGate[] gates){
   //looks like: {(part1),(part2),..,(partn)|<part>[otherPart,outputFromOtherOart],<soOn>[AndSoForth]}
   String s = "{";
   s+=gates.length+",";
+  //get all of the parts, and index the gates
   for(int i = 0; i < gates.length; i++){
     s+=gates[i].GetParts();
+    gates[i].arrayIndex = i;
   }
   s+="|";
   for(int i = 0; i < gates.length; i++){
@@ -2131,7 +2210,6 @@ void draw(){
       }
     }
   }
-  
   
   Cleanup();
 }
