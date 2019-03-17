@@ -949,6 +949,13 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   return newGates;
 }
 
+String CircuitString(ArrayList<LogicGate> cir){
+  String s = "OnesAndZeroes Savefile. Don't modify this next line if you want things to work proper\n";
+  s+=GateString(cir.toArray(new LogicGate[cir.size()]));
+  return s;
+}
+
+//memory usage might kill us
 String GateString(LogicGate[] gates){
   //looks like: {(part1),(part2),..,(partn)|<part>[otherPart,outputFromOtherOart],<soOn>[AndSoForth]}
   String s = "{";
@@ -1199,65 +1206,118 @@ class StringMenu extends UIElement{
 class TextInput extends UIElement{
   boolean isTyping = false;
   boolean startedTyping = false;
+  boolean persistent = false;
+  int align;
   char lastKey = 'r';
-  public void Show(float x1, float y1, float h1){
+  float x0,y0,w0,h0;
+  public void Show(float x1, float y1, float h1,int aline){
     isTyping = true;
-    x=x1;y=y1;h=h1;
+    x=x1;y=y1;h=h1; align = aline;
+    x0=x;y0=y;h0=h;w0=w;
   }
   
-  private String s = "";
-  private String edited = "";
+  protected String text = "";
+  protected String edited = "";
   
   String getText(){
-    return s;
+    return text;
   }
   
   private boolean isLegit(char c){
     return ((c>=' ')&&(c<='~'));
   }
   
+  private void drawContents(String str){
+    updateDimensions(str);
+    stroke(foregroundCol);
+    strokeWeight(1/scale);
+    noFill();
+    super.Draw();
+    strokeWeight(1);
+    fill(foregroundCol);
+    textAlign(CENTER);
+    text(str,WorldX(),WorldY()+h/4.0);
+    //carat
+    if(isTyping){
+      line(WorldX()+w/2-5, WorldY()+h/1.5,WorldX()+w/2-5, WorldY()-h/1.5);
+    }
+  }
+  
+  protected void updateDimensions(String str){
+    float newW = max(100,textWidth(str)+10);
+    if(align==LEFT){
+      x += (newW - w)/2.0;
+    } else if(align==RIGHT){
+      x -= (newW - w)/2.0;
+    }
+    w = newW;
+  }
+  
   @Override
   public void Draw(){
+    textSize(h);
     if(isTyping){
-      stroke(foregroundCol);
-      strokeWeight(1/scale);
-      super.Draw();
-      strokeWeight(1);
-      textSize(h);
-      
       if(!startedTyping){
         startedTyping = true;
         edited = "";
       }
-      
+      drawContents(edited);
       if(keyPushed){
         keyPushed = false;
         if(keyThatWasPushed=='\n'){
           isTyping = false;
-          s = edited;
+          text = edited;
         } else if(keyThatWasPushed=='\b'){
           if(edited.length()>0){
             edited = edited.substring(0,edited.length()-1);
-            w = textWidth(edited)+10;
           }
         } else if(isLegit(keyThatWasPushed)) {
           edited += keyThatWasPushed;
-          w = textWidth(edited)+10;
         }
       }
-      
-      fill(foregroundCol);
-      textAlign(CENTER);
-      text(edited,WorldX(),WorldY()+h/4.0);
-      line(WorldX()+w/2-5, WorldY()+h/1.5,WorldX()+w/2-5, WorldY()-h/1.5);
-      textSize(TEXTSIZE);
     } else {
+      if(persistent){
+        drawContents(text);
+      }
       startedTyping = false;
+    }
+    textSize(TEXTSIZE);
+  }
+}
+
+class TextLabel extends TextInput{
+  String label;
+  boolean clicked1 = false;
+  TextLabel(String l, String text1, float x, float y, float h,int aline){
+    text = text1;
+    Show(x,y,h,aline);
+    isTyping = false;
+    label = l;
+    persistent = true;
+    align = aline;
+  }
+  
+  @Override
+  void OnMousePress(){
+    if(mouseButton==LEFT){
+      isTyping = true;
     }
   }
   
-  public void ExitTyping(){
-    isTyping = false;
+  @Override
+  void Draw(){
+    super.Draw();
+    textSize(h);
+    textAlign(align);
+    text(label, WorldX()-w/2,WorldY()+h/4);
+    textSize(TEXTSIZE);
+    if(!clicked1){
+      if(mousePressed){
+        if(!mouseInside(WorldX()-w/2,WorldY()-h/2,w,h)){
+          isTyping = false;
+        }
+      }
+    }
   }
 }
 
@@ -1438,8 +1498,10 @@ void setup(){
   });
   
   logicGateGroupAddMenu.MoveTo(outputGateAddMenu.WorldX()+outputGateAddMenu.w/2f+10,0);
-  
   menus.add(logicGateGroupAddMenu);
+  
+  fileNameField = new TextLabel("Circuit name: ","unnamed",-20,-50,20,RIGHT);
+  menus.add(fileNameField);
 }
 
 
@@ -1787,7 +1849,9 @@ float DrawInstructions(String[] actions,float h, float v,float spacing){
     return v;
 }
 
+//will be used by various things for renaming, etc
 TextInput textField = new TextInput();
+TextLabel fileNameField;  
 
 void DrawAvailableActions(){
   float v = height - 10;
@@ -1816,7 +1880,6 @@ void DrawAvailableActions(){
   textSize(TEXTSIZE);
   v+=spacing;
 }
-
 
 
 void draw(){
@@ -1882,7 +1945,6 @@ void draw(){
           ClearGateSelection();
           ClearPinSelection();
         }
-        textField.Show(MouseXPos(),MouseYPos(),20);
       }
       
       //Object selection logic
@@ -1974,6 +2036,8 @@ void draw(){
         Duplicate();
       } else if(keyPushed(CKey)){
         ConnectSelected();
+      } else if(keyPushed(SKey)){
+        //SaveProject();
       }
     }
   }
