@@ -388,6 +388,13 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     }
   }
   
+  @Override 
+  public void OnDragStart(){
+    if(!selection.contains(this)){
+      ClearGateSelection();
+    }
+  }
+  
   @Override
   public void OnDrag(){
     if(mouseButton==LEFT){
@@ -428,7 +435,7 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     if(showText){
       textAlign(CENTER);
       fill(foregroundCol);
-      text(title,WorldX(),WorldY());
+      text(title,WorldX(),WorldY()+TEXTSIZE/4.0);
     }
     
     stroke(foregroundCol);
@@ -647,7 +654,7 @@ class RelayGate extends LogicGate{
     inputs[0] = new InPin(this);
     inputs[0].MoveTo(-w/2-inputs[0].w/2,0);
     
-    title = "->";
+    title = ">";
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this,0);
     outputs[0].MoveTo(w/2+outputs[0].w/2,0);
@@ -704,10 +711,13 @@ class LCDGate extends LogicGate{
 }
 
 class Base10Gate extends LogicGate{
-  public Base10Gate(){
+  public Base10Gate(float fontSize){
     super();
     showText=false;
-    w=200; h=20;
+    h = fontSize;
+    textSize(h);
+    w = textWidth("2,147,483,647")+20;
+    textSize(TEXTSIZE);
     title = "Num";
     inputs = new InPin[32];
     for(int i = 0; i < 32; i++){
@@ -725,7 +735,7 @@ class Base10Gate extends LogicGate{
     super.Draw();
     stroke(foregroundCol);
     textAlign(CENTER);
-    textSize(20);
+    textSize(h);
     fill(0,225,0);
     text(number,WorldX(),WorldY()+h/4);
     textSize(TEXTSIZE);
@@ -733,18 +743,18 @@ class Base10Gate extends LogicGate{
   
   @Override
   void UpdateLogic(){
-    long num = 0;
+    int num = 0;
     for(int i = 0; i < inputs.length; i++){
       if(inputs[i].Value()){
-        num += pow(2,i);
+        num = num | (1<<i);
       }
     }
-    number = str(num);
+    number = nf(num,0,0);
   }
   
   @Override
   public LogicGate CopySelf(){
-    LogicGate lg = new Base10Gate();
+    LogicGate lg = new Base10Gate(h);
     lg.CopyValues(this);
     return lg;
   }
@@ -826,8 +836,8 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   for(int i = 0; i < gates.length; i++){
     newGates[i] = gates[i].CopySelf();
     if(gates[i].inputs!=null){
-    //we need to know what their array positions are in order to do the next part
-    gates[i].arrayIndex = i;
+      //we need to know what their array positions are in order to do the next part
+      gates[i].arrayIndex = i;
     }
   }
   
@@ -840,7 +850,7 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
       LogicGate outputLg = gates[i].inputs[j].input.chip; 
       int gateIndex = outputLg.arrayIndex;
       int outputIndex = outputLg.OutputIndex(gates[i].inputs[j].input);
-      InPin copiedInput = newGates[i].inputs[j]; 
+      InPin copiedInput = newGates[i].inputs[j];
       OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
       copiedInput.Connect(copiedOutput);
     }
@@ -1169,7 +1179,7 @@ float dragDelta = 0;
 void setup(){
   size(800,600);
   
-  textFont(createFont("Monospaced",TEXTSIZE));
+  //textFont(createFont("Monospaced",TEXTSIZE));
   circuit = new ArrayList<LogicGate>();
   circuitGroups = new ArrayList<LogicGateGroup>();
   deletionQueue = new ArrayList<LogicGate>();
@@ -1372,7 +1382,7 @@ void AddGateGroup(int i){
   
 }
 
-String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large","Base 10 readout"};
+String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large","Int32 readout"};
 String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand","Ticker"};
 final int INPUTGATE = 0;
 final int ANDGATE = 1;
@@ -1385,7 +1395,6 @@ final int PIXELGATE = TICKER + 2;
 final int LLCDGATE = TICKER + 3;
 final int LPIXELGATE = TICKER + 4;
 final int BASE10GATE = TICKER + 5;
-
 
 //This function can add every primitive gate
 void AddGate(int g){
@@ -1432,7 +1441,7 @@ void AddGate(int g){
       break;
     }
     case (BASE10GATE):{
-      lg = new Base10Gate();
+      lg = new Base10Gate(30);
       break;
     }
     default:{
@@ -1558,6 +1567,67 @@ void IncrementDeleteTimer(float x, float y, float w, float h, LogicGate lg){
   }
 }
 
+String[] normalActions = {
+  "[RMB]+drag: pan view",
+  "[LMB]: move 2D cursor",
+  "[LMB]+drag: select things",
+  "[Shift]+[LMB]+drag: additively select things"
+};
+
+String[] gateActions = {
+  "[LMB]+drag: move gate(s)",
+  "[RMB] hold: delete gate(s)"
+};
+
+String[] nodeActions = {
+  "[LMB]+drag to another pin: create a link between two pins"
+};
+
+String[] selectedActions = {
+  "[Shift]+[G]: combine 2+ gates into a group",
+  "[Shift]+[D]: duplicate selection"
+};
+
+String[] selectedPinActions = {
+  "[Shift]+[C]: connect inputs to outputs"
+};
+
+float DrawInstructions(String[] actions,float h, float v,float spacing){
+    for(int i = actions.length-1; i >= 0; i --){
+      String s = actions[i];
+      text(s,h,v);
+      v+=spacing;
+    }
+    return v;
+}
+
+void DrawAvailableActions(){
+  float v = height - 10;
+  float h = 0;
+  float spacing = -10;
+  textAlign(LEFT);
+  fill(255,0,0);
+  if(selection.size()>0){
+    v = DrawInstructions(selectedActions,h,v,spacing);
+  }
+  fill(0,200,200);
+  if((selectedInputs.size()>0)&&(selectedOutputs.size()>0)){
+    v = DrawInstructions(selectedPinActions,h,v,spacing);
+  }
+  fill(foregroundCol);
+  if(lastSelectedPin!=null){
+    v = DrawInstructions(nodeActions,h,v,spacing);
+  } else if(gateUnderMouse!=null){
+    fill(255,0,0);
+    v = DrawInstructions(gateActions,h,v,spacing);
+  } else {
+    v = DrawInstructions(normalActions,h,v,spacing);
+  }
+  textSize(TEXTSIZE+4);
+  text("Actions available: ",h,v);
+  textSize(TEXTSIZE);
+  v+=spacing;
+}
 
 void draw(){
   if(gateUnderMouse!=null){
@@ -1565,10 +1635,6 @@ void draw(){
   } else {
     noCursor();
   }
-  
-  //needs to be manually reset
-  mouseOver = false;
-  gateUnderMouse = null;
   
   //UI space
   dragStarted = false;
@@ -1584,6 +1650,13 @@ void draw(){
   if((selectedInputs.size()+selectedOutputs.size())>0){
     text("Selected IO: "+selectedInputs.size()+" input nodes, "+selectedOutputs.size()+" output nodes",0,20);
   }
+  
+  DrawAvailableActions();
+    
+  //needs to be manually reset
+  mouseOver = false;
+  gateUnderMouse = null;
+  lastSelectedPin = null;
   
   //World space
   translate(width/2,height/2);
