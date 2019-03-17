@@ -553,19 +553,6 @@ class AndGate extends BinaryGate{
   }
   
   @Override
-  public String GetParts(){
-    String s = "{"+ANDGATE + "," + str(x) + "," + str(y)+","; 
-    for(int i = 0; i < outputs.length;i++){
-      s+= outputs[i].Value() ? "1" : "0";
-      if(i<outputs.length-1){
-        s+=",";
-      }
-    }
-    s+="}";
-    return s;
-  }
-  
-  @Override
   public int PartID(){
     return ANDGATE;
   }
@@ -962,7 +949,7 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
 String filepath(String filename){
   return "Saved Circuits\\"+filename+".txt";
 }
-/*
+
 void LoadProject(String filename){
   Cleanup();
   circuit.clear();
@@ -978,23 +965,38 @@ void LoadProject(String filename){
 }
 
 LogicGate[] RecursiveLoad(String data){
+  //Load all the parts
   int partsIndex = data.lastIndexOf('|');
-  int start = data.indexOf('(');
-  int end = data.lastIndexOf(')',partsIndex);
-  LogicGate part = RecursiveLoadPart(data,indexA,indexB);
+  int start = data.indexOf('{');
+  int end = data.indexOf(',',start+1);
+  int n = int(data.substring(start+1,end));
+  LogicGate[] loaded = new LogicGate[n];
+  //start is at {   end is at ,
+  for(int i =  0; i < n; i++){
+    start = data.indexOf('(',end);
+    if(data.charAt(start+1)=='{'){
+      //Find the end of this part and recursive load it
+    } else {
+      end = data.indexOf(')',start+1);
+      //Normal load it since it's just a primitive
+      loaded[i] = LoadPart(data,start,end);
+    }
+  }
+  
+  //Connect all the parts we just loaded
+  start = partsIndex;
   
   return loaded;
 }
 
-LogicGate RecursiveLoadPart(String data, int start, int end){
-  if(data.charAt(start+1)=='{'){
-    return 
-  } else {
-    int gateNo = int(data.substring(start+1, data.indexOf(',',start+1)));
-    return CreateGate(gateNo);
-  }
+LogicGate LoadPart(String data, int start, int end){
+  
 }
-*/
+
+LogicGate RecursiveLoadPart(String data, int start, int end){
+
+}
+
 void SaveProject(String filename){
   String[] s = {CircuitString(circuit)};
   saveStrings(filepath(filename),s);
