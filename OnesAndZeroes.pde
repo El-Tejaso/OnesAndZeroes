@@ -1043,6 +1043,7 @@ void loadMetadata(LogicGate lg, String data, int start, int end){
   a=b+1;
   if(data.charAt(a)=='O'){
     assignOutputs(lg,data.substring(a+1,end));
+    return;
   }
   //otherwise we have to load in the width and height and then do so
   b = data.indexOf(',',a);
@@ -1465,8 +1466,8 @@ class TextLabel extends TextInput{
 }
 
 //INPUT SYSTEM copy pasted from another personal project
-boolean[] keyJustPressed = new boolean[22];
-boolean[] keyStates = new boolean[22];
+boolean[] keyJustPressed = new boolean[23];
+boolean[] keyStates = new boolean[23];
 boolean keyDown(int Key) { return keyStates[Key]; }
 boolean keyPushed(int Key){
   if(!keyDown(Key))
@@ -1501,6 +1502,7 @@ final int TabKey = 18;
 final int FSlashKey = 19;
 final int TKey = 20;
 final int GKey = 21;
+final int LKey = 22;
 
 boolean shiftChanged = false;
 //maps the processing keys to integers in our key state array, so we can add new keys as we please
@@ -1613,6 +1615,8 @@ void setup(){
   keyMappings.put(' ', SpaceKey);
   keyMappings.put('g',GKey);
   keyMappings.put('G',GKey);
+  keyMappings.put('l',LKey);
+  keyMappings.put('L',LKey);
   
   menus = new ArrayList<UIElement>();
   UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
@@ -2194,21 +2198,26 @@ void draw(){
   
   strokeWeight(1);
   //handle all key shortcuts
-  
-  if(keyDown(ShiftKey)){
-    if(keyPushed(GKey)){
-      CreateNewGroup();
-    } else if(keyPushed(DKey)){
-      Duplicate();
-    } else if(keyPushed(CKey)){
-      ConnectSelected();
-    } else if(keyPushed(SKey)){
-      if(!fileNameField.isTyping){
-        String filename = fileNameField.Text();
-        println("Saved "+filename);
+  if(!fileNameField.isTyping){
+    String filename = fileNameField.Text();
+    if(keyDown(ShiftKey)){
+      if(keyPushed(GKey)){
+        CreateNewGroup();
+      } else if(keyPushed(DKey)){
+        Duplicate();
+      } else if(keyPushed(CKey)){
+        ConnectSelected();
+      } else if(keyPushed(SKey)){
         SaveProject(filename);
+        println("Saved "+filename);
+      } else if(keyPushed(LKey)){
+        LoadProject(filename);
+        println("Loaded "+filename);
       }
     }
+    textAlign(RIGHT);
+    text("[Shift]+[S] to save " + filepath(filename) ,-20,20);
+    text("[Shift]+[L] to load " + filepath(filename) ,-20,40);
   }
   
   Cleanup();
