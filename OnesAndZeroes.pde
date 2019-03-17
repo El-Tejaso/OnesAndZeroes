@@ -249,10 +249,6 @@ class OutPin extends Pin{
     value = v;
   }
   
-  public long ChipID(){
-    return chip.ID();
-  }
-  
   @Override
   public boolean Value(){
     return value;
@@ -307,7 +303,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   public boolean deleted = false;
   protected boolean showText = true;
   boolean drawPins = true;
-  private long id;
   protected int level = 0;
   InPin[] inputs;
   
@@ -337,12 +332,7 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   int compareTo(LogicGate lg){
     return Integer.compare(level,lg.level);
   }
-  
-  LogicGate(){
-    id = logicGateID;
-    logicGateID++;
-  }
-  
+    
   public int NumGates(){
     return 1;
   }
@@ -351,11 +341,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     if(title==type)
       return 1;
     return 0;
-  }
-  
-  //returns the memory address of this object as an unsigned integer
-  public long ID(){
-    return id;
   }
   
   public int OutputIndex(OutPin output){
@@ -377,6 +362,49 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   public abstract LogicGate CopySelf();
+  public abstract int PartID();
+  
+  public String PartIDString(){
+    return nf(PartID(),0,0);
+  }
+  
+  public String GetParts(){
+    //looks like: (partID,x,y,O0110100010O)
+    //will have to change for other parts
+    String s = "("+PartIDString() + "," + str(x) + "," + str(y)+",O"; 
+    for(int i = 0; i < outputs.length;i++){
+      s+= outputs[i].Value() ? "1" : "0";
+      if(i<outputs.length-1){
+        s+=",";
+      }
+    }
+    s+="O)";
+    return s;
+  }
+  
+  //only works if the array it's supposed to be a part of has been indexed properly
+  public String GetInputs(){
+    //will look like: <thisGate>[gateindex,outputIndex][null][null], <anotherGate>[so on so forth]
+    String s = "<"+arrayIndex+">";
+    for(int i = 0; i < inputs.length; i++){
+      s+="[";
+      if(inputs[i].IsConnected()){
+        OutPin out = inputs[i].input;
+        //the indexing thing only works if the chip of the incoming output is in the same array/group
+        if(out.parent.parent==parent){
+          s+= out.chip.arrayIndex;
+          s+=",";
+          s+= out.chip.OutputIndex(out);
+        } else {
+          s+= "O";//for "Outside"
+        }
+      } else {
+        s+="N";//for "Null"
+      }
+      s+="]";
+    }
+    return s;
+  }
   
   //won't work if the gates are of different kinds
   public void CopyValues(LogicGate other){
@@ -385,6 +413,10 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     parent = other.parent;
     for(int i = 0; i < inputs.length; i++){
       inputs[i].Connect(other.inputs[i].input);
+    }
+    
+    for(int i = 0; i < outputs.length; i++){
+      outputs[i].SetValue(other.outputs[i].Value());
     }
   }
   
@@ -514,6 +546,24 @@ class AndGate extends BinaryGate{
     lg.CopyValues(this);
     return lg;
   }
+  
+  @Override
+  public String GetParts(){
+    String s = "{"+ANDGATE + "," + str(x) + "," + str(y)+","; 
+    for(int i = 0; i < outputs.length;i++){
+      s+= outputs[i].Value() ? "1" : "0";
+      if(i<outputs.length-1){
+        s+=",";
+      }
+    }
+    s+="}";
+    return s;
+  }
+  
+  @Override
+  public int PartID(){
+    return ANDGATE;
+  }
 }
 
 class OrGate extends BinaryGate{
@@ -532,6 +582,11 @@ class OrGate extends BinaryGate{
     LogicGate lg = new OrGate();
     lg.CopyValues(this);
     return lg;
+  }
+  
+  @Override
+  public int PartID(){
+    return ORGATE;
   }
 }
 
@@ -561,6 +616,11 @@ class NotGate extends LogicGate{
     lg.CopyValues(this);
     return lg;
   }
+  
+  @Override
+  public int PartID(){
+    return NOTGATE;
+  }
 }
 
 class NandGate extends BinaryGate{
@@ -579,6 +639,11 @@ class NandGate extends BinaryGate{
     LogicGate lg = new NandGate();
     lg.CopyValues(this);
     return lg;
+  }
+  
+  @Override
+  public int PartID(){
+    return NANDGATE;
   }
 }
 
@@ -643,6 +708,11 @@ class Ticker extends LogicGate{
     lg.phase = phase;
     return lg;
   }
+  
+  @Override
+  public int PartID(){
+    return TICKGATE;
+  }
 }
 
 class RelayGate extends LogicGate{
@@ -681,6 +751,11 @@ class RelayGate extends LogicGate{
     lg.CopyValues(this);
     return lg;
   }
+  
+  @Override
+  public int PartID(){
+    return INPUTGATE;
+  }
 }
 
 class LCDGate extends LogicGate{
@@ -707,6 +782,11 @@ class LCDGate extends LogicGate{
     LogicGate lg = new LCDGate(w,h);
     lg.CopyValues(this);
     return lg;
+  }
+  
+  @Override
+  public int PartID(){
+    return LCDGATE;
   }
 }
 
@@ -757,6 +837,11 @@ class Base10Gate extends LogicGate{
     LogicGate lg = new Base10Gate(h);
     lg.CopyValues(this);
     return lg;
+  }
+  
+  @Override
+  public int PartID(){
+    return BASE10GATE;
   }
 }
 
@@ -825,6 +910,11 @@ class PixelGate extends LogicGate{
     }
     textSize(TEXTSIZE);
   }
+  
+  @Override
+  public int PartID(){
+    return PIXELGATE;
+  }
 }
 
 
@@ -857,6 +947,20 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   }
   
   return newGates;
+}
+
+String GateString(LogicGate[] gates){
+  //looks like: {(part1),(part2),..,(partn)|<part>[otherPart,outputFromOtherOart],<soOn>[AndSoForth]}
+  String s = "{";
+  for(int i = 0; i < gates.length; i++){
+    s+=gates[i].GetParts();
+  }
+  s+="|";
+  for(int i = 0; i < gates.length; i++){
+    s+=gates[i].GetInputs();
+  }
+  s+="}";
+  return s;
 }
 
 class LogicGateGroup extends LogicGate{
@@ -990,6 +1094,16 @@ class LogicGateGroup extends LogicGate{
     lg.CopyValues(this);
     return lg;
   }
+  
+  @Override int PartID(){
+    return -1;
+  }
+  
+  //Save every gate recursively lmao
+  @Override
+  public String PartIDString(){
+    return GateString(gates);
+  }
 }
 
 //----------------- CUSTOM UI ELEMENTS ----------------
@@ -1081,6 +1195,7 @@ class StringMenu extends UIElement{
   }
 }
 
+//will be used to input names and stuff
 class TextInput extends UIElement{
   boolean isTyping = false;
   boolean startedTyping = false;
@@ -1460,12 +1575,12 @@ final int ANDGATE = 1;
 final int ORGATE = 2;
 final int NOTGATE = 3;
 final int NANDGATE = 4;
-final int TICKER = 5;
-final int LCDGATE = TICKER + 1;
-final int PIXELGATE = TICKER + 2;
-final int LLCDGATE = TICKER + 3;
-final int LPIXELGATE = TICKER + 4;
-final int BASE10GATE = TICKER + 5;
+final int TICKGATE = 5;
+final int LCDGATE = TICKGATE + 1;
+final int PIXELGATE = TICKGATE + 2;
+final int LLCDGATE = TICKGATE + 3;
+final int LPIXELGATE = TICKGATE + 4;
+final int BASE10GATE = TICKGATE + 5;
 
 //This function can add every primitive gate
 void AddGate(int g){
@@ -1491,7 +1606,7 @@ void AddGate(int g){
       lg = new NandGate();
       break;
     }
-    case(TICKER):{
+    case(TICKGATE):{
       lg = new Ticker();
       break;
     }
