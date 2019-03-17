@@ -369,16 +369,16 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   public String GetParts(){
-    //looks like: (partID,x,y,O0110100010O)
+    //looks like: (partID,x,y,0110100010)
     //will have to change for other parts
-    String s = "("+PartIDString() + "," + str(x) + "," + str(y)+",O"; 
+    String s = "("+PartIDString() + "," + str(x) + "," + str(y)+","; 
     for(int i = 0; i < outputs.length;i++){
       s+= outputs[i].Value() ? "1" : "0";
       if(i<outputs.length-1){
         s+=",";
       }
     }
-    s+="O)";
+    s+=")";
     return s;
   }
   
@@ -949,8 +949,13 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   return newGates;
 }
 
+void SaveProject(String filename){
+  String[] s = {CircuitString(circuit)};
+  saveStrings("Saved Circuits\\"+filename,s);
+}
+
 String CircuitString(ArrayList<LogicGate> cir){
-  String s = "OnesAndZeroes Savefile. Don't modify this next line if you want things to work proper\n";
+  String s = "OnesAndZeroes Savefile. Don't modify these next lines if you want things to work proper\r\n";
   s+=GateString(cir.toArray(new LogicGate[cir.size()]));
   return s;
 }
@@ -966,7 +971,7 @@ String GateString(LogicGate[] gates){
   for(int i = 0; i < gates.length; i++){
     s+=gates[i].GetInputs();
   }
-  s+="}";
+  s+="}\r\n";
   return s;
 }
 
@@ -1219,12 +1224,12 @@ class TextInput extends UIElement{
   protected String text = "";
   protected String edited = "";
   
-  String getText(){
+  String Text(){
     return text;
   }
   
   private boolean isLegit(char c){
-    return ((c>=' ')&&(c<='~'));
+    return (((c>='a')&&(c<='z'))||((c>='A')&&(c<='Z')))&&("(){}[]/.,;'\" \\=!@#$%^&*~`".indexOf(c)==-1);
   }
   
   private void drawContents(String str){
@@ -1253,6 +1258,14 @@ class TextInput extends UIElement{
     w = newW;
   }
   
+  protected boolean isLegit(String s){
+    if(s.length()==0){
+      return false;
+    }
+    
+    return true;
+  }
+  
   @Override
   public void Draw(){
     textSize(h);
@@ -1266,7 +1279,9 @@ class TextInput extends UIElement{
         keyPushed = false;
         if(keyThatWasPushed=='\n'){
           isTyping = false;
-          text = edited;
+          if(isLegit(edited)){
+            text = edited;
+          }
         } else if(keyThatWasPushed=='\b'){
           if(edited.length()>0){
             edited = edited.substring(0,edited.length()-1);
@@ -2028,19 +2043,23 @@ void draw(){
   
   strokeWeight(1);
   //handle all key shortcuts
-  if(!textField.isTyping){
-    if(keyDown(ShiftKey)){
-      if(keyPushed(GKey)){
-        CreateNewGroup();
-      } else if(keyPushed(DKey)){
-        Duplicate();
-      } else if(keyPushed(CKey)){
-        ConnectSelected();
-      } else if(keyPushed(SKey)){
-        //SaveProject();
+  
+  if(keyDown(ShiftKey)){
+    if(keyPushed(GKey)){
+      CreateNewGroup();
+    } else if(keyPushed(DKey)){
+      Duplicate();
+    } else if(keyPushed(CKey)){
+      ConnectSelected();
+    } else if(keyPushed(SKey)){
+      if(!fileNameField.isTyping){
+        String filename = fileNameField.Text()+year()+"-"+month()+"-"+day()+"-"+second()+millis()+".txt";
+        println("Saved "+filename);
+        SaveProject(filename);
       }
     }
   }
+  
   
   Cleanup();
 }
