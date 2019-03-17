@@ -1681,7 +1681,18 @@ void Duplicate(){
     
   LogicGate[] newGates = CopyPreservingConnections(selection.toArray(new LogicGate[selection.size()]));
   selection.clear();
+  float xMax=newGates[0].x,yMax=newGates[0].y;
+  float xMin=newGates[0].x,yMin=newGates[0].y;
   for(LogicGate lg : newGates){
+    xMax = max(xMax,lg.x);
+    xMin = min(xMin,lg.x);
+    yMax = max(yMax,lg.y);
+    yMin = min(yMin,lg.y);
+  }
+  
+  for(LogicGate lg : newGates){
+    lg.x += xMax-xMin;
+    lg.y -= yMax-yMin;
     selection.add(lg);
     circuit.add(lg);      
   }
