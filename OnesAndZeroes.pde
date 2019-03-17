@@ -1091,6 +1091,7 @@ class TextInput extends UIElement{
   }
   
   private String s = "";
+  private String edited = "";
   
   String getText(){
     return s;
@@ -1111,32 +1112,37 @@ class TextInput extends UIElement{
       
       if(!startedTyping){
         startedTyping = true;
-        s = "";
+        edited = "";
       }
       
       if(keyPushed){
         keyPushed = false;
         if(keyThatWasPushed=='\n'){
           isTyping = false;
+          s = edited;
         } else if(keyThatWasPushed=='\b'){
-          if(s.length()>0){
-            s = s.substring(0,s.length()-1);
-            w = textWidth(s)+10;
+          if(edited.length()>0){
+            edited = edited.substring(0,edited.length()-1);
+            w = textWidth(edited)+10;
           }
         } else if(isLegit(keyThatWasPushed)) {
-          s += keyThatWasPushed;
-          w = textWidth(s)+10;
+          edited += keyThatWasPushed;
+          w = textWidth(edited)+10;
         }
       }
       
       fill(foregroundCol);
       textAlign(CENTER);
-      text(s,WorldX(),WorldY()+TEXTSIZE/4.0);
-      line(WorldX()+w/2-5, WorldY()+h/5,WorldX()+w/2-5, WorldY()-h/5);
+      text(edited,WorldX(),WorldY()+h/4.0);
+      line(WorldX()+w/2-5, WorldY()+h/1.5,WorldX()+w/2-5, WorldY()-h/1.5);
       textSize(TEXTSIZE);
     } else {
       startedTyping = false;
     }
+  }
+  
+  public void ExitTyping(){
+    isTyping = false;
   }
 }
 
@@ -1184,10 +1190,11 @@ HashMap<Character, Integer> keyMappings = new HashMap<Character, Integer>();
 
 boolean keyPushed = false;
 char keyThatWasPushed; 
-
+int keyCodeThatWasPushed;
 void keyPressed(){
   keyPushed = true;
   keyThatWasPushed = key;
+  keyCodeThatWasPushed = keyCode;
   
   if(keyMappings.containsKey(key)){
     keyStates[keyMappings.get(key)]=true;
@@ -1695,6 +1702,8 @@ void DrawAvailableActions(){
   v+=spacing;
 }
 
+
+
 void draw(){
   if(gateUnderMouse!=null){
     cursor(MOVE);
@@ -1758,7 +1767,7 @@ void draw(){
           ClearGateSelection();
           ClearPinSelection();
         }
-        textField.Show(MouseXPos(),MouseYPos(),TEXTSIZE);
+        textField.Show(MouseXPos(),MouseYPos(),20);
       }
       
       //Object selection logic
