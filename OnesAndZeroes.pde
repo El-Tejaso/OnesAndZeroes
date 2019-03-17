@@ -1081,6 +1081,64 @@ class StringMenu extends UIElement{
   }
 }
 
+class TextInput extends UIElement{
+  boolean isTyping = false;
+  boolean startedTyping = false;
+  char lastKey = 'r';
+  public void Show(float x1, float y1, float h1){
+    isTyping = true;
+    x=x1;y=y1;h=h1;
+  }
+  
+  private String s = "";
+  
+  String getText(){
+    return s;
+  }
+  
+  private boolean isLegit(char c){
+    return ((c>=' ')&&(c<='~'));
+  }
+  
+  @Override
+  public void Draw(){
+    if(isTyping){
+      stroke(foregroundCol);
+      strokeWeight(1/scale);
+      super.Draw();
+      strokeWeight(1);
+      textSize(h);
+      
+      if(!startedTyping){
+        startedTyping = true;
+        s = "";
+      }
+      
+      if(keyPushed){
+        keyPushed = false;
+        if(keyThatWasPushed=='\n'){
+          isTyping = false;
+        } else if(keyThatWasPushed=='\b'){
+          if(s.length()>0){
+            s = s.substring(0,s.length()-1);
+            w = textWidth(s)+10;
+          }
+        } else if(isLegit(keyThatWasPushed)) {
+          s += keyThatWasPushed;
+          w = textWidth(s)+10;
+        }
+      }
+      
+      fill(foregroundCol);
+      textAlign(CENTER);
+      text(s,WorldX(),WorldY()+TEXTSIZE/4.0);
+      line(WorldX()+w/2-5, WorldY()+h/5,WorldX()+w/2-5, WorldY()-h/5);
+      textSize(TEXTSIZE);
+    } else {
+      startedTyping = false;
+    }
+  }
+}
 
 //INPUT SYSTEM copy pasted from another personal project
 boolean[] keyJustPressed = new boolean[22];
@@ -1124,7 +1182,13 @@ boolean shiftChanged = false;
 //maps the processing keys to integers in our key state array, so we can add new keys as we please
 HashMap<Character, Integer> keyMappings = new HashMap<Character, Integer>();
 
+boolean keyPushed = false;
+char keyThatWasPushed; 
+
 void keyPressed(){
+  keyPushed = true;
+  keyThatWasPushed = key;
+  
   if(keyMappings.containsKey(key)){
     keyStates[keyMappings.get(key)]=true;
   }
@@ -1145,7 +1209,7 @@ void keyPressed(){
   }
 }
 
-void keyReleased(){
+void keyReleased(){  
   if(keyMappings.containsKey(key)){    
     keyStates[keyMappings.get(key)]=false;
     keyJustPressed[keyMappings.get(key)]=false;
@@ -1601,6 +1665,8 @@ float DrawInstructions(String[] actions,float h, float v,float spacing){
     return v;
 }
 
+TextInput textField = new TextInput();
+
 void DrawAvailableActions(){
   float v = height - 10;
   float h = 0;
@@ -1692,6 +1758,7 @@ void draw(){
           ClearGateSelection();
           ClearPinSelection();
         }
+        textField.Show(MouseXPos(),MouseYPos(),TEXTSIZE);
       }
       
       //Object selection logic
@@ -1770,15 +1837,20 @@ void draw(){
     text(i,p.WorldX(), p.WorldY());
     i++;
   }
+  
+  textField.Draw();
+  
   strokeWeight(1);
   //handle all key shortcuts
-  if(keyDown(ShiftKey)){
-    if(keyPushed(GKey)){
-      CreateNewGroup();
-    } else if(keyPushed(DKey)){
-      Duplicate();
-    } else if(keyPushed(CKey)){
-      ConnectSelected();
+  if(!textField.isTyping){
+    if(keyDown(ShiftKey)){
+      if(keyPushed(GKey)){
+        CreateNewGroup();
+      } else if(keyPushed(DKey)){
+        Duplicate();
+      } else if(keyPushed(CKey)){
+        ConnectSelected();
+      }
     }
   }
   
