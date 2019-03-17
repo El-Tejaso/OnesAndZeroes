@@ -372,10 +372,13 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     //looks like: (partID,x,y,0110100010)
     //will have to change for other parts
     String s = "("+PartIDString() + "," + str(x) + "," + str(y)+","; 
-    for(int i = 0; i < outputs.length;i++){
-      s+= outputs[i].Value() ? "1" : "0";
-      if(i<outputs.length-1){
-        s+=",";
+    s+="O";//so we know when the outputs are coming
+    if(outputs!=null){
+      for(int i = 0; i < outputs.length;i++){
+        s+= outputs[i].Value() ? "1" : "0";
+        if(i<outputs.length-1){
+          s+=",";
+        }
       }
     }
     s+=")";
@@ -415,8 +418,10 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
       inputs[i].Connect(other.inputs[i].input);
     }
     
-    for(int i = 0; i < outputs.length; i++){
-      outputs[i].SetValue(other.outputs[i].Value());
+    if(outputs!=null){
+      for(int i = 0; i < outputs.length; i++){
+        outputs[i].SetValue(other.outputs[i].Value());
+      }
     }
   }
   
@@ -937,21 +942,62 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
       //get the output gate from our gates 
       if(!gates[i].inputs[j].IsConnected())
         continue;
-      LogicGate outputLg = gates[i].inputs[j].input.chip; 
-      int gateIndex = outputLg.arrayIndex;
-      int outputIndex = outputLg.OutputIndex(gates[i].inputs[j].input);
-      InPin copiedInput = newGates[i].inputs[j];
-      OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
-      copiedInput.Connect(copiedOutput);
+        
+      LogicGate outputLg = gates[i].inputs[j].input.chip;
+      //Only preserve connections if they are within the array
+      if(outputLg.parent==gates[i].parent){
+        int gateIndex = outputLg.arrayIndex;
+        int outputIndex = outputLg.OutputIndex(gates[i].inputs[j].input);
+        InPin copiedInput = newGates[i].inputs[j];
+        OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
+        copiedInput.Connect(copiedOutput);
+      }
     }
   }
   
   return newGates;
 }
 
+
+String filepath(String filename){
+  return "Saved Circuits\\"+filename+".txt";
+}
+/*
+void LoadProject(String filename){
+  Cleanup();
+  circuit.clear();
+  ClearGateSelection();
+  ClearPinSelection();
+  String[] file = loadStrings(filepath(filename));
+  if(file.length < 2){
+    println("not my type of file tbh");
+    return;
+  }
+  String data = file[1];
+  LogicGate[] loadedGates = RecursiveLoad(data);
+}
+
+LogicGate[] RecursiveLoad(String data){
+  int partsIndex = data.lastIndexOf('|');
+  int start = data.indexOf('(');
+  int end = data.lastIndexOf(')',partsIndex);
+  LogicGate part = RecursiveLoadPart(data,indexA,indexB);
+  
+  return loaded;
+}
+
+LogicGate RecursiveLoadPart(String data, int start, int end){
+  if(data.charAt(start+1)=='{'){
+    return 
+  } else {
+    int gateNo = int(data.substring(start+1, data.indexOf(',',start+1)));
+    return CreateGate(gateNo);
+  }
+}
+*/
 void SaveProject(String filename){
   String[] s = {CircuitString(circuit)};
-  saveStrings("Saved Circuits\\"+filename,s);
+  saveStrings(filepath(filename),s);
 }
 
 String CircuitString(ArrayList<LogicGate> cir){
@@ -964,6 +1010,7 @@ String CircuitString(ArrayList<LogicGate> cir){
 String GateString(LogicGate[] gates){
   //looks like: {(part1),(part2),..,(partn)|<part>[otherPart,outputFromOtherOart],<soOn>[AndSoForth]}
   String s = "{";
+  s+=gates.length+",";
   for(int i = 0; i < gates.length; i++){
     s+=gates[i].GetParts();
   }
@@ -971,7 +1018,7 @@ String GateString(LogicGate[] gates){
   for(int i = 0; i < gates.length; i++){
     s+=gates[i].GetInputs();
   }
-  s+="}\r\n";
+  s+="}";
   return s;
 }
 
@@ -1659,8 +1706,7 @@ final int LLCDGATE = TICKGATE + 3;
 final int LPIXELGATE = TICKGATE + 4;
 final int BASE10GATE = TICKGATE + 5;
 
-//This function can add every primitive gate
-void AddGate(int g){
+LogicGate CreateGate(int g){
   LogicGate lg;
   switch(g){
     case(INPUTGATE): {
@@ -1712,6 +1758,12 @@ void AddGate(int g){
       break;
     }
   }
+  return lg;
+}
+
+//This function can add every primitive gate
+void AddGate(int g){
+  LogicGate lg = CreateGate(g);
   lg.x=cursor.WorldX();
   lg.y=cursor.WorldY();
   circuit.add(lg);
@@ -1855,6 +1907,10 @@ String[] selectedPinActions = {
   "[Shift]+[C]: connect inputs to outputs"
 };
 
+String[] selectedInputActions = {
+  "[Shift]+[C]: disconnect"
+};
+
 float DrawInstructions(String[] actions,float h, float v,float spacing){
     for(int i = actions.length-1; i >= 0; i --){
       String s = actions[i];
@@ -1880,7 +1936,10 @@ void DrawAvailableActions(){
   fill(0,200,200);
   if((selectedInputs.size()>0)&&(selectedOutputs.size()>0)){
     v = DrawInstructions(selectedPinActions,h,v,spacing);
+  } else if(selectedInputs.size()>0){
+    v=DrawInstructions(selectedInputActions,h,v,spacing);
   }
+  
   fill(foregroundCol);
   if(lastSelectedPin!=null){
     v = DrawInstructions(nodeActions,h,v,spacing);
@@ -2053,7 +2112,7 @@ void draw(){
       ConnectSelected();
     } else if(keyPushed(SKey)){
       if(!fileNameField.isTyping){
-        String filename = fileNameField.Text()+year()+"-"+month()+"-"+day()+"-"+second()+millis()+".txt";
+        String filename = fileNameField.Text();
         println("Saved "+filename);
         SaveProject(filename);
       }
