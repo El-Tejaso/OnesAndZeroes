@@ -1,8 +1,9 @@
 //---------A logic gate simulator----------
 //By Tejas Hegde
 //To add:
-//-Load/save circuits
-//-Composite circuits --first priority
+// quick access to all saved circuits
+// better save/load functionality to prevent accidental overwrites
+// maybe some more parts?
 //-----------------------------------------
 
 final int TEXTSIZE = 12;
@@ -957,12 +958,11 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   return newGates;
 }
 
+final String dir = "Saved Circuits\\"; 
 
 String filepath(String filename){
-  return "Saved Circuits\\"+filename+".txt";
+  return dir+filename+".txt";
 }
-
-
 
 void LoadProject(String filePath){
   Cleanup();
@@ -1109,6 +1109,7 @@ LogicGate LoadGroup(String data, int start, int end){
 void SaveProject(String filePath){
   String[] s = {CircuitString(circuit)};
   saveStrings(filePath,s);
+  UpdateGroups();
 }
 
 String CircuitString(ArrayList<LogicGate> cir){
@@ -1288,14 +1289,7 @@ class StringMenu extends UIElement{
   String heading;
   CallbackFunctionInt f;
   
-  public StringMenu(String[] arr, String title, CallbackFunctionInt intFunction){
-    heading = title;
-    elements = new ArrayList<String>();
-    for(String s : arr){
-      elements.add(s);
-    }
-    f = intFunction;
-    
+  private void updateDimensions(){
     //setup the dimensions
     int max = heading.length();
     for(Object s : elements){
@@ -1304,10 +1298,24 @@ class StringMenu extends UIElement{
       }
     }
     
+    x -= w/2;
+    y -= h/2;
+    
     w = max * 7 + 20 + 2 * padding;
     h = (elements.size()+1) * (elementHeight+padding) + padding;
-    x = w/2;
-    y = h/2;
+    
+    x += w/2;
+    y += h/2;
+  }
+  
+  public StringMenu(String[] arr, String title, CallbackFunctionInt intFunction){
+    heading = title;
+    elements = new ArrayList<String>();
+    for(String s : arr){
+      elements.add(s);
+    }
+    updateDimensions();
+    f = intFunction;
   }
   
   @Override
@@ -1322,6 +1330,18 @@ class StringMenu extends UIElement{
   
   public void AddEntry(String s){
     elements.add(s);
+  }
+  
+  public String GetEntry(int i){
+    return elements.get(i);
+  }
+  
+  public void UpdateEntries(ArrayList<String> arr){
+    elements.clear();
+    for(String s : arr){
+      elements.add(s);
+    }
+    updateDimensions();
   }
   
   boolean listClicked = false;
@@ -1665,7 +1685,7 @@ void setup(){
   outputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
   menus.add(outputGateAddMenu);
   
-  UIElement logicGateGroupAddMenu = new StringMenu(new String[]{}, "ADD A GROUP", new CallbackFunctionInt(){
+  logicGateGroupAddMenu = new StringMenu(new String[]{}, "ADD SAVED", new CallbackFunctionInt(){
     @Override
     public void f(int i){
       AddGateGroup(i);
@@ -1674,11 +1694,41 @@ void setup(){
   
   logicGateGroupAddMenu.MoveTo(outputGateAddMenu.WorldX()+outputGateAddMenu.w/2f+10,0);
   menus.add(logicGateGroupAddMenu);
+  UpdateGroups();
   
   fileNameField = new TextLabel("Circuit name: ","unnamed",-20,-50,20,RIGHT);
   menus.add(fileNameField);
 }
 
+StringMenu logicGateGroupAddMenu;
+
+String[] listFiles(String path) {
+  File file = new File(path);
+  if (file.isDirectory()) {
+    String[] files = file.list();
+    return files;
+  } else {
+    // If it's not a directory
+    return null;
+  }
+}
+
+//get a list of files in filepath
+void UpdateGroups(){
+  String[] files = listFiles(sketchPath()+"\\"+dir);
+  ArrayList<String> finalGroups = new ArrayList<String>();
+  for(String f : files){
+    int dotIndex = f.lastIndexOf('.');
+    if(dotIndex>=0){
+      println(f.substring(dotIndex,f.length()));
+      println(f); //<>//
+      if(f.substring(dotIndex,f.length()).equals(".txt")){
+        finalGroups.add(f.substring(0,dotIndex));
+      }
+    }
+  }
+  logicGateGroupAddMenu.UpdateEntries(finalGroups);
+}
 
 ArrayList<UIElement> menus;
 
@@ -1813,7 +1863,8 @@ void Duplicate(){
 
 //soon my brodas, soon
 void AddGateGroup(int i){
-  
+  String filename = logicGateGroupAddMenu.GetEntry(i);
+  LoadProject(filepath(filename));
 }
 
 String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large","Int32 readout"};
@@ -2245,8 +2296,8 @@ void draw(){
       }
     }
     textAlign(RIGHT);
-    text("[Shift]+[S] to save " + filePath ,-20,20);
-    text("[Shift]+[L] to load " + filePath ,-20,40);
+    text("[Shift]+[S] to save \"" + filePath +"\"" ,-20,20);
+    text("[Shift]+[L] to load \"" + filePath +"\"" ,-20,40);
   }
   
   Cleanup();
