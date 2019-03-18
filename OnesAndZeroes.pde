@@ -1,9 +1,10 @@
 //---------A logic gate simulator----------
 //By Tejas Hegde
 //To add:
-// quick access to all saved circuits
 // better save/load functionality to prevent accidental overwrites
-// maybe some more parts?
+// Named nodes for groups
+// Expand/collapse groups
+// named groups
 //-----------------------------------------
 
 final int TEXTSIZE = 12;
@@ -193,6 +194,9 @@ class InPin extends Pin{
   @Override
   public void Draw(){
     super.Draw();
+  }
+  
+  public void DrawLink(){
     if(IsConnected()){
       line(WorldX(),WorldY(),input.WorldX(),input.WorldY());
     }
@@ -498,6 +502,10 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
           outputs[i].Draw();
         }
       }
+    }
+    
+    for(int i = 0; i < inputs.length; i++){
+      inputs[i].DrawLink();
     }
   }
   
@@ -968,10 +976,19 @@ void LoadProject(String filePath){
   Cleanup();
   ClearGateSelection();
   ClearPinSelection();
-  String[] file = loadStrings(filePath);
+  LogicGate[] loadedGates = LoadGatesFromFile(filePath);
+  
+  for(LogicGate lg : loadedGates){
+    circuit.add(lg);
+    selection.add(lg);
+  }
+}
+
+LogicGate[] LoadGatesFromFile(String filepath){
+  String[] file = loadStrings(filepath);
   if(file.length < 2){
     println("not my type of file tbh");
-    return; 
+    return null; 
   }
   String data = file[1];
   LogicGate[] loadedGates;
@@ -979,13 +996,9 @@ void LoadProject(String filePath){
     loadedGates = RecursiveLoad(data);
   } catch(Exception e){
     println("Something went wrong: " + e.getMessage());
-    return;
+    return null;
   }
-  
-  for(LogicGate lg : loadedGates){
-    circuit.add(lg);
-    selection.add(lg);
-  }
+  return loadedGates;
 }
 
 //tf is this hackerrank? this is definately one of those questions you would find there lmao
@@ -1139,6 +1152,12 @@ class LogicGateGroup extends LogicGate{
   LogicGate[] gates;
   boolean expose = true;
   int numGates;
+  String name;
+  //these dimensions are for when the inner gates are exposed
+  float ew,eh;
+  //`` are hidden
+  float hw,hh;
+  
   @Override
   int NumGates(){
     int sum = 0;
@@ -1169,7 +1188,7 @@ class LogicGateGroup extends LogicGate{
     ArrayList<OutPin> usedOutputs = new ArrayList<OutPin>();
     
     for(LogicGate lg : gates){
-      lg.drawPins = true;
+      lg.drawPins = false;
       lg.acceptUIInput = false;
       
       minX=min(lg.x-lg.w/2-5, minX);
@@ -1203,8 +1222,8 @@ class LogicGateGroup extends LogicGate{
     
     x = (minX+maxX)/2.0;
     y = (minY+maxY)/2.0;
-    w = maxX-minX;
-    h = maxY-minY;
+    ew = maxX-minX;
+    eh = maxY-minY;
     
     inputs = unusedInputs.toArray(new InPin[unusedInputs.size()]);
     
@@ -1226,21 +1245,47 @@ class LogicGateGroup extends LogicGate{
     
     outputs = unusedOutputs.toArray(new OutPin[unusedOutputs.size()]);
     
-    ArrangeInputs();
-    ArrangeOutputs();
+    hw = max(inputs.length,outputs.length)*inputs[0].h*2;
+    hh = hw;
+    
     level = maxAbstraction+1;
+  }
+  
+  void SetName(String newName){
+    name = newName;
+    hw = textWidth(newName)+hh;
+  }
+  
+  @Override void OnMouseRelease(){
+    if(draggedElement!=this){
+      expose = !expose;
+    }
   }
   
   @Override
   public void Draw(){
-    noFill();
-    super.Draw();
-    
     if(expose){
+      h = eh;
+      w = ew;
+      
       for(LogicGate lg : gates){
         lg.Draw();
       }
+    } else {
+      h = hh;
+      w = hw;
     }
+    
+    ArrangeInputs();
+    ArrangeOutputs();
+    
+    if(name!=null){
+      textAlign(CENTER);
+      text(name,WorldX(),WorldY()+TEXTSIZE/4);
+    }
+    
+    super.Draw();
+    noFill();
   }
   
   @Override
@@ -1623,7 +1668,6 @@ void setup(){
   circuitGroups = new ArrayList<LogicGateGroup>();
   deletionQueue = new ArrayList<LogicGate>();
   selection = new ArrayList<LogicGate>();
-  AddGate(0);
   
   //setup the input system
   keyMappings.put('a', AKey);
@@ -1674,6 +1718,8 @@ void setup(){
     }
   });
   
+  logicGateAddMenu.MoveTo(4,0);
+  
   menus.add(logicGateAddMenu);
   
   UIElement outputGateAddMenu = new StringMenu(outputNames, "ADD OUTPUT GATE", new CallbackFunctionInt(){
@@ -1697,7 +1743,10 @@ void setup(){
   UpdateGroups();
   
   fileNameField = new TextLabel("Circuit name: ","unnamed",-20,-50,20,RIGHT);
-  menus.add(fileNameField);
+  menus.add(fileNameField);  
+  
+  cursor.MoveTo(100,-100);
+  AddGate(0);
 }
 
 StringMenu logicGateGroupAddMenu;
@@ -1864,7 +1913,12 @@ void Duplicate(){
 //soon my brodas, soon
 void AddGateGroup(int i){
   String filename = logicGateGroupAddMenu.GetEntry(i);
-  LoadProject(filepath(filename));
+  LogicGate[] gates = LoadGatesFromFile(filepath(filename));
+  if(gates==null)
+    return;
+  LogicGateGroup lg = new LogicGateGroup(gates);
+  lg.SetName(filename);
+  circuit.add(lg);
 }
 
 String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large","Int32 readout"};
@@ -2143,6 +2197,7 @@ void draw(){
   background(backgroundCol);
   fill(foregroundCol);
   stroke(foregroundCol);
+  
   drawCrosshair(mouseX,mouseY,10);
   
   textAlign(LEFT);
@@ -2164,9 +2219,9 @@ void draw(){
   translate(width/2,height/2);
   scale(scale);
   translate(-xPos,-yPos);
+  strokeWeight(1/scale);
   drawCrosshair(0,0,30);
-  textAlign(RIGHT);
-  text("0,0", -TEXTSIZE,TEXTSIZE);
+  strokeWeight(1);
   
   
   for(int i = circuit.size()-1; i >=0 ;i--){
@@ -2174,6 +2229,10 @@ void draw(){
     lGate.Draw();
     lGate.UpdateIOPins();
   }
+  
+  strokeWeight(1/scale);
+  cursor.Draw();
+  strokeWeight(1);
   
   for(UIElement element : menus){
     element.Draw();
@@ -2250,8 +2309,6 @@ void draw(){
   } else {
     deleteTimer = 0;
   }
-  
-  cursor.Draw();
   
   for(LogicGate lGate : selection){
     stroke(255,0,0);
