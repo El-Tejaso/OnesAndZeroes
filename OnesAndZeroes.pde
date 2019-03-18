@@ -111,6 +111,20 @@ class UIElement{
 
 class Pin extends UIElement{
   protected LogicGate chip;
+  protected LogicGate abstractedChip;
+  
+  public LogicGate ActualChip(){
+    return chip;
+  }
+  
+  public LogicGate Chip(){
+    return abstractedChip;
+  }
+  
+  public void SetParent(LogicGate p){
+    parent = p;
+    abstractedChip = p;
+  }
   
   public boolean IsDeleted(){
     return chip.deleted;
@@ -119,6 +133,7 @@ class Pin extends UIElement{
   Pin(LogicGate parentChip){
     chip = parentChip;
     parent = parentChip;
+    abstractedChip = parentChip;
     dragThreshold = -1;
   }
   
@@ -389,11 +404,11 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
       s+="[";
       if(inputs[i].IsConnected()){
         OutPin out = inputs[i].input;
-        //the indexing thing only works if the chip of the incoming output is in the same array/group
-        if(out.parent.parent==parent){
-          s+= out.chip.arrayIndex;
+        //the indexing thing only works if the chip of the incoming output is in the same group
+        if(out.Chip().parent==parent){
+          s+= out.Chip().arrayIndex;
           s+=",";
-          s+= out.chip.OutputIndex(out);
+          s+= out.Chip().OutputIndex(out);
         }
       }
       
@@ -916,24 +931,22 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   
   for(int i = 0; i < gates.length; i++){
     newGates[i] = gates[i].CopySelf();
-    if(gates[i].inputs!=null){
       //we need to know what their array positions are in order to do the next part
-      gates[i].arrayIndex = i;
-    }
+    gates[i].arrayIndex = i;
   }
   
   //make the connections copied -> copied instead of original -> copied
   for(int i = 0; i < gates.length; i++){
     for(int j = 0; j < gates[i].inputs.length; j++){
-      InPin input=gates[i].inputs[j];
+      InPin input = gates[i].inputs[j];
       //get the output gate from our gates 
       if(!input.IsConnected())
         continue;
       
       //Only carry over connections if they are within the array/group
-      if(contains(gates,input.input.chip)){
-        int gateIndex = input.chip.arrayIndex;        
-        int outputIndex = input.chip.OutputIndex(input.input);
+      if(contains(gates,input.input.Chip())){
+        int gateIndex = input.input.Chip().arrayIndex;        
+        int outputIndex = input.input.Chip().OutputIndex(input.input);
         InPin copiedInput = newGates[i].inputs[j];
         OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
         copiedInput.Connect(copiedOutput);
@@ -1153,6 +1166,7 @@ class LogicGateGroup extends LogicGate{
     int maxAbstraction = 0; 
     ArrayList<InPin> unusedInputs = new ArrayList<InPin>();
     ArrayList<OutPin> usedOutputs = new ArrayList<OutPin>();
+    
     for(LogicGate lg : gates){
       lg.drawPins = true;
       lg.acceptUIInput = false;
@@ -1161,6 +1175,7 @@ class LogicGateGroup extends LogicGate{
       maxX = max(lg.x+lg.w/2+5, maxX);
       minY=min(lg.y-lg.h/2-5,minY);
       maxY=max(lg.y+lg.h/2+5,maxY);
+      
       lg.parent = this;
       maxAbstraction = max(lg.level, maxAbstraction);
       numGates += lg.NumGates();
@@ -1169,9 +1184,18 @@ class LogicGateGroup extends LogicGate{
       for(InPin p : lg.inputs){
         if(!p.IsConnected()){
           unusedInputs.add(p);
-          p.parent = this;
+          p.SetParent(this);
         } else {
-          usedOutputs.add(p.input);
+          //we need to check if it is connected to an output from the outside the group, in which case it is techinically 'unused'
+          LogicGate lg2 = p.input.Chip();
+          boolean found = contains(gates, lg2);
+          
+          if(!found){
+            unusedInputs.add(p);
+            p.SetParent(this);
+          } else {
+            usedOutputs.add(p.input);
+          }
         }
       }
     }
@@ -1180,6 +1204,7 @@ class LogicGateGroup extends LogicGate{
     y = (minY+maxY)/2.0;
     w = maxX-minX;
     h = maxY-minY;
+    
     inputs = unusedInputs.toArray(new InPin[unusedInputs.size()]);
     
     //make the x and y positions of the gates relative to this
@@ -1192,11 +1217,12 @@ class LogicGateGroup extends LogicGate{
         for(OutPin p : lg.outputs){
           if(!usedOutputs.contains(p)){
             unusedOutputs.add(p);
-            p.parent = this;
+            p.SetParent(this);
           }
         }
       }
     }
+    
     outputs = unusedOutputs.toArray(new OutPin[unusedOutputs.size()]);
     
     ArrangeInputs();
