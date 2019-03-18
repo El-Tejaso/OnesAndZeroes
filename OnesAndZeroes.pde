@@ -1113,9 +1113,10 @@ LogicGate LoadGroup(String data, int start, int end){
   int partEnd = findCorrespondingBracket(data,start+1,end,'{','}')+1; 
   //Connections are resolved in here
   LogicGate[] gates = RecursiveLoad(data.substring(start+1,partEnd));
-  LogicGate lg = new LogicGateGroup(gates);
+  LogicGateGroup lg = new LogicGateGroup(gates);
   start = partEnd + 1;
   loadMetadata(lg,data,start,end);
+  lg.expose = false;
   return lg;
 }
 
@@ -1451,7 +1452,7 @@ class TextInput extends UIElement{
   }
   
   private boolean isLegit(char c){
-    return (((c>='a')&&(c<='z'))||((c>='A')&&(c<='Z')))&&("(){}[]/.,;'\" \\=!@#$%^&*~`".indexOf(c)==-1);
+    return (((c>='0')&&(c<='9'))||((c>='a')&&(c<='z'))||((c>='A')&&(c<='Z')))&&("(){}[]/.,;'\" \\=!@#$%^&*~`".indexOf(c)==-1);
   }
   
   private void drawContents(String str){
@@ -1910,13 +1911,13 @@ void Duplicate(){
   }
 }
 
-//soon my brodas, soon
 void AddGateGroup(int i){
   String filename = logicGateGroupAddMenu.GetEntry(i);
   LogicGate[] gates = LoadGatesFromFile(filepath(filename));
   if(gates==null)
     return;
   LogicGateGroup lg = new LogicGateGroup(gates);
+  lg.expose = false;
   lg.SetName(filename);
   circuit.add(lg);
 }
