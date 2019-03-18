@@ -1,2 +1,2 @@
 OnesAndZeroes Savefile. Don't modify these next lines if you want things to work proper
-{2,(0,92.414215,-63.14971,O0)(0,45.43699,-46.207104,O0)|<0>[1,0]<1>[]}
+{2,(0,47.09503,-60.700256,O0)(1,131.2062,-62.597813,O0)|<0>[]<1>[0,0][0,0]}

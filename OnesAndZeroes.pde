@@ -899,7 +899,13 @@ class PixelGate extends LogicGate{
   }
 }
 
-
+boolean contains(LogicGate[] arr, LogicGate lg){
+  for(LogicGate l : arr){
+    if(l==lg)
+      return true;
+  }
+  return false;
+}
 
 //Makes sure that the copied gates aren't connected to the old ones
 LogicGate[] CopyPreservingConnections(LogicGate[] gates){
@@ -921,13 +927,15 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
         continue;
         
       LogicGate outputLg = gates[i].inputs[j].input.chip;
-      //Only preserve connections if they are within the array
-      if(outputLg.parent==gates[i].parent){
-        int gateIndex = outputLg.arrayIndex;
+      InPin copiedInput = newGates[i].inputs[j];
+      //Only carry over connections if they are within the array/group
+      if(contains(gates,outputLg)){
+        int gateIndex = outputLg.arrayIndex;        
         int outputIndex = outputLg.OutputIndex(gates[i].inputs[j].input);
-        InPin copiedInput = newGates[i].inputs[j];
         OutPin copiedOutput = newGates[gateIndex].outputs[outputIndex];
         copiedInput.Connect(copiedOutput);
+      } else {
+        copiedInput.Connect(null);
       }
     }
   }
@@ -940,21 +948,29 @@ String filepath(String filename){
   return "Saved Circuits\\"+filename+".txt";
 }
 
-void LoadProject(String filename){
+
+
+void LoadProject(String filePath){
   Cleanup();
-  circuit.clear();
   ClearGateSelection();
   ClearPinSelection();
-  String[] file = loadStrings(filepath(filename));
+  String[] file = loadStrings(filePath);
   if(file.length < 2){
     println("not my type of file tbh");
-    return;
+    return; 
   }
   String data = file[1];
-  LogicGate[] loadedGates = RecursiveLoad(data);
-  circuit = new ArrayList<LogicGate>();
+  LogicGate[] loadedGates;
+  try{
+    loadedGates = RecursiveLoad(data);
+  } catch(Exception e){
+    println("Something went wrong: " + e.getMessage());
+    return;
+  }
+  
   for(LogicGate lg : loadedGates){
     circuit.add(lg);
+    selection.add(lg);
   }
 }
 
@@ -1076,9 +1092,9 @@ LogicGate LoadGroup(String data, int start, int end){
   return lg;
 }
 
-void SaveProject(String filename){
+void SaveProject(String filePath){
   String[] s = {CircuitString(circuit)};
-  saveStrings(filepath(filename),s);
+  saveStrings(filePath,s);
 }
 
 String CircuitString(ArrayList<LogicGate> cir){
@@ -2090,7 +2106,8 @@ void draw(){
   text("0,0", -TEXTSIZE,TEXTSIZE);
   
   
-  for(LogicGate lGate : circuit){
+  for(int i = circuit.size()-1; i >=0 ;i--){
+    LogicGate lGate = circuit.get(i);
     lGate.Draw();
     lGate.UpdateIOPins();
   }
@@ -2199,7 +2216,7 @@ void draw(){
   strokeWeight(1);
   //handle all key shortcuts
   if(!fileNameField.isTyping){
-    String filename = fileNameField.Text();
+    String filePath = filepath(fileNameField.Text());
     if(keyDown(ShiftKey)){
       if(keyPushed(GKey)){
         CreateNewGroup();
@@ -2208,16 +2225,16 @@ void draw(){
       } else if(keyPushed(CKey)){
         ConnectSelected();
       } else if(keyPushed(SKey)){
-        SaveProject(filename);
-        println("Saved "+filename);
+        SaveProject(filePath);
+        println("Saved "+filePath);
       } else if(keyPushed(LKey)){
-        LoadProject(filename);
-        println("Loaded "+filename);
+        LoadProject(filePath);
+        println("Loaded "+filePath);
       }
     }
     textAlign(RIGHT);
-    text("[Shift]+[S] to save " + filepath(filename) ,-20,20);
-    text("[Shift]+[L] to load " + filepath(filename) ,-20,40);
+    text("[Shift]+[S] to save " + filePath ,-20,20);
+    text("[Shift]+[L] to load " + filePath ,-20,40);
   }
   
   Cleanup();
