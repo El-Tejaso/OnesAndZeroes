@@ -6,8 +6,17 @@
 // Expand/collapse groups
 // named groups
 //-----------------------------------------
+import java.util.Arrays;
 
 final int TEXTSIZE = 12;
+
+color backgroundCol = color(255);
+color foregroundCol = color(0);
+color trueCol = color(0,255,0,100);
+color falseCol = color(255,0,0,100);
+color gateHoverCol = color(0,0,255,100);
+color menuHeadingCol = color(0,0,255);
+color warningCol = color(255,0,0);
 
 //Putting these here cause you cant make static vars in processing
 //This is to prevent multiple things being dragged at once
@@ -111,9 +120,13 @@ class UIElement{
   public void OnDragStart(){}
 }
 
-class Pin extends UIElement{
+class Pin extends UIElement implements Comparable<Pin>{
   protected LogicGate chip;
   protected LogicGate abstractedChip;
+  
+  public int compareTo(Pin other){
+    return Float.compare(y,other.y);
+  }
   
   public LogicGate ActualChip(){
     return chip;
@@ -683,10 +696,8 @@ class Ticker extends LogicGate{
     super.UpdateIOPins();
     phase ++;
     if(phase > ticks){
-      outputs[0].SetValue(true);
+      outputs[0].SetValue(!outputs[0].Value());
       phase = 0;
-    } else {
-      outputs[0].SetValue(false);
     }
   }
   
@@ -972,16 +983,21 @@ String filepath(String filename){
   return dir+filename+".txt";
 }
 
-void LoadProject(String filePath){
+boolean LoadProject(String filePath){
   Cleanup();
   ClearGateSelection();
   ClearPinSelection();
   LogicGate[] loadedGates = LoadGatesFromFile(filePath);
-  
-  for(LogicGate lg : loadedGates){
-    circuit.add(lg);
-    selection.add(lg);
+  if(loadedGates!=null){
+    for(LogicGate lg : loadedGates){
+      circuit.add(lg);
+      selection.add(lg);
+    }
+    notifications.add("Loaded \""+filePath+"\" !");
+    return true;
   }
+  notifications.add("Unable to load \""+filePath+"\" :(");
+  return false;
 }
 
 LogicGate[] LoadGatesFromFile(String filepath){
@@ -1124,6 +1140,7 @@ void SaveProject(String filePath){
   String[] s = {CircuitString(circuit)};
   saveStrings(filePath,s);
   UpdateGroups();
+  notifications.add("Saved \""+filePath+"\" !");
 }
 
 String CircuitString(ArrayList<LogicGate> cir){
@@ -1227,7 +1244,7 @@ class LogicGateGroup extends LogicGate{
     eh = maxY-minY;
     
     inputs = unusedInputs.toArray(new InPin[unusedInputs.size()]);
-    
+    Arrays.sort(inputs);
     //make the x and y positions of the gates relative to this
     //and also find all the unlinked outputs
     ArrayList<OutPin> unusedOutputs = new ArrayList<OutPin>();
@@ -1245,6 +1262,7 @@ class LogicGateGroup extends LogicGate{
     }
     
     outputs = unusedOutputs.toArray(new OutPin[unusedOutputs.size()]);
+    Arrays.sort(outputs);
     
     hw = max(inputs.length,outputs.length)*inputs[0].h*2;
     hh = hw;
@@ -1324,22 +1342,30 @@ class LogicGateGroup extends LogicGate{
 
 //----------------- CUSTOM UI ELEMENTS ----------------
 //used by other ui elements
-class CallbackFunctionInt {
-  public void f(int i){}
+abstract class CallbackFunctionInt {
+  public abstract void f(int i);
 }
 
+
+abstract class CallbackFunction {
+  public abstract void f();
+}
+
+
 class StringMenu extends UIElement{
-  ArrayList<String> elements;
+  ArrayList<Button> elements;
   float elementHeight = 11;
   float padding = 2;
   String heading;
   CallbackFunctionInt f;
   
-  private void updateDimensions(){
+  private void updateDimensions(String[] arr){
+    if(arr.length==0)
+      return;
     //setup the dimensions
-    int max = heading.length();
-    for(Object s : elements){
-      if(s.toString().length() > max){
+    int max = arr[0].length();
+    for(String s : arr){
+      if(s.length() > max){
         max = s.toString().length();
       }
     }
@@ -1348,7 +1374,7 @@ class StringMenu extends UIElement{
     y -= h/2;
     
     w = max * 7 + 20 + 2 * padding;
-    h = (elements.size()+1) * (elementHeight+padding) + padding;
+    h = (arr.length+1) * (elementHeight+padding) + padding;
     
     x += w/2;
     y += h/2;
@@ -1356,12 +1382,9 @@ class StringMenu extends UIElement{
   
   public StringMenu(String[] arr, String title, CallbackFunctionInt intFunction){
     heading = title;
-    elements = new ArrayList<String>();
-    for(String s : arr){
-      elements.add(s);
-    }
-    updateDimensions();
+    elements = new ArrayList<Button>();
     f = intFunction;
+    UpdateEntries(arr);
   }
   
   @Override
@@ -1374,20 +1397,28 @@ class StringMenu extends UIElement{
     listClicked = false;
   }
   
-  public void AddEntry(String s){
-    elements.add(s);
-  }
-  
   public String GetEntry(int i){
-    return elements.get(i);
+    return elements.get(i).Text();
   }
   
-  public void UpdateEntries(ArrayList<String> arr){
+  public void UpdateEntries(String[] arr){
     elements.clear();
-    for(String s : arr){
-      elements.add(s);
+    updateDimensions(arr);
+    for(int i =0; i < arr.length; i++){
+      float x1 = 0;
+      float y1 = padding + (i+1.5)*(elementHeight+padding)-h/2;
+      float w1 = w-2*padding;
+      float h1 = elementHeight;
+      final CallbackFunctionInt finalCallback = f;
+      final int thisIndex = i;
+      elements.add(new Button(arr[i],x1,y1,w1,h1,gateHoverCol, trueCol, new CallbackFunction(){
+        @Override
+        public void f(){
+          finalCallback.f(thisIndex);
+        }
+      }));
+      elements.get(i).parent = this;
     }
-    updateDimensions();
   }
   
   boolean listClicked = false;
@@ -1395,37 +1426,11 @@ class StringMenu extends UIElement{
   @Override
   public void Draw(){
     noFill();
-    stroke(foregroundCol);
     super.Draw();
     fill(menuHeadingCol);
-    textAlign(CENTER);
     text(heading,WorldX(),WorldY()-h/2+elementHeight);
     for(int i = 0; i < elements.size();i++){
-      noFill();
-      float x1 = WorldX()-w/2+padding;
-      float y1 = WorldY()+padding + i*(elementHeight+padding)-h/2+elementHeight;
-      float w1 = w-2*padding;
-      float h1 = elementHeight;
-      if(mouseInside(x1,y1,w1,h1)){
-        mouseOver = true;
-        fill(gateHoverCol);
-        if(mousePressed && (mouseButton==LEFT)){
-          noFill();
-          if(!listClicked){
-            listClicked = true;
-            f.f(i);
-          }
-        }
-      }
-      rect(x1,y1, w1, h1);
-    }
-    
-    fill(foregroundCol);
-    textAlign(CENTER);
-    for(int i = 0; i < elements.size();i++){
-      float x1 = WorldX();
-      float y1 = WorldY()+ (i+1)*(elementHeight+padding)-h/2+elementHeight-padding;      
-      text(elements.get(i),x1,y1);
+      elements.get(i).Draw();
     }
   }
 }
@@ -1556,6 +1561,47 @@ class TextLabel extends TextInput{
         }
       }
     }
+  }
+}
+
+class Button extends UIElement{
+  color hC, pC;
+  String title;
+  CallbackFunction func;
+  Button(String content, float x1, float y1, float w1, float h1, color hoverColor, color pressColor, CallbackFunction f){
+    x = x1; y = y1; w = w1; h = h1; hC = hoverColor; pC = pressColor;
+    func = f;
+    title = content;
+  }
+  
+  public String Text(){
+    return title;
+  }
+  
+  @Override
+  void OnHover(){
+    fill(hC);
+  }
+  
+  @Override
+  void OnMouseDown(){
+    fill(pC);
+  }
+  
+  @Override
+  void OnMouseRelease(){
+    func.f();
+  }
+  
+  @Override
+  void Draw(){
+    noFill();
+    super.Draw();
+    fill(foregroundCol);
+    textSize(h - 2);
+    textAlign(CENTER);
+    text(title, WorldX(), WorldY() + (h-2)/4);
+    textSize(TEXTSIZE);
   }
 }
 
@@ -1746,9 +1792,34 @@ void setup(){
   fileNameField = new TextLabel("Circuit name: ","unnamed",-20,-50,20,RIGHT);
   menus.add(fileNameField);  
   
+  //text("[Shift]+[S] to save \"" + filePath +"\"" ,-20,20);
+    //text("[Shift]+[L] to load \"" + filePath +"\"" ,-20,40);
+  
+  saveButton = new Button("Save", -90,-20, textWidth("Save")+20, TEXTSIZE + 4, gateHoverCol, trueCol,
+                  new CallbackFunction(){
+                    @Override
+                    public void f(){
+                      Save();
+                    }
+                  });
+  menus.add(saveButton);
+  
+  loadButton = new Button("Load", -40,-20, textWidth("Save")+20, TEXTSIZE + 4, gateHoverCol, trueCol,
+                  new CallbackFunction(){
+                    @Override
+                    public void f(){
+                      Load();
+                    }
+                  });
+                  
+  menus.add(loadButton);
+  
   cursor.MoveTo(100,-100);
   AddGate(0);
 }
+
+Button saveButton;
+Button loadButton;
 
 StringMenu logicGateGroupAddMenu;
 
@@ -1777,7 +1848,7 @@ void UpdateGroups(){
       }
     }
   }
-  logicGateGroupAddMenu.UpdateEntries(finalGroups);
+  logicGateGroupAddMenu.UpdateEntries(finalGroups.toArray(new String[finalGroups.size()]));
 }
 
 ArrayList<UIElement> menus;
@@ -1786,14 +1857,6 @@ ArrayList<UIElement> menus;
 float xPos=0;
 float yPos=0;
 float scale=1;
-
-color backgroundCol = color(255);
-color foregroundCol = color(0);
-color trueCol = color(0,255,0,100);
-color falseCol = color(255,0,0,100);
-color gateHoverCol = color(0,0,255,100);
-color menuHeadingCol = color(0,0,255);
-color warningCol = color(255,0,0);
 
 float ToWorldX(float screenX){
   return ((screenX-width/2)/scale)+xPos;
@@ -1922,7 +1985,7 @@ void AddGateGroup(int i){
   circuit.add(lg);
 }
 
-String outputNames[] = {"LCD Pixel", "24-bit Pixel", "LCD Pixel large", "LCD 24-bit Pixel large","Int32 readout"};
+String outputNames[] = {"LCD Pixel", "24-bit Pixel","Int32 readout"};
 String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand","Ticker"};
 final int INPUTGATE = 0;
 final int ANDGATE = 1;
@@ -1932,8 +1995,6 @@ final int NANDGATE = 4;
 final int TICKGATE = 5;
 final int LCDGATE = TICKGATE + 1;
 final int PIXELGATE = TICKGATE + 2;
-final int LLCDGATE = TICKGATE + 3;
-final int LPIXELGATE = TICKGATE + 4;
 final int BASE10GATE = TICKGATE + 5;
 
 LogicGate CreateGate(int g){
@@ -1964,18 +2025,10 @@ LogicGate CreateGate(int g){
       break;
     }
     case(LCDGATE):{
-      lg = new LCDGate(20,20);
-      break;
-    }
-    case(PIXELGATE):{
-      lg = new PixelGate(20,20);
-      break;
-    }
-    case(LLCDGATE):{
       lg = new LCDGate(80,80);
       break;
     }
-    case(LPIXELGATE):{
+    case(PIXELGATE):{
       lg = new PixelGate(80,80);
       break;
     }
@@ -2210,6 +2263,9 @@ void draw(){
   }
   
   DrawAvailableActions();
+  fill(0,255,0);
+  textAlign(RIGHT);
+  DrawNotifications();
     
   //needs to be manually reset
   mouseOver = false;
@@ -2345,20 +2401,47 @@ void draw(){
         Duplicate();
       } else if(keyPushed(CKey)){
         ConnectSelected();
-      } else if(keyPushed(SKey)){
-        SaveProject(filePath);
-        println("Saved "+filePath);
-      } else if(keyPushed(LKey)){
-        LoadProject(filePath);
-        println("Loaded "+filePath);
       }
     }
     textAlign(RIGHT);
-    text("[Shift]+[S] to save \"" + filePath +"\"" ,-20,20);
-    text("[Shift]+[L] to load \"" + filePath +"\"" ,-20,40);
   }
   
   Cleanup();
+}
+
+ArrayList<String> notifications = new ArrayList<String>();
+int timer = 0;
+void DrawNotifications(){
+  if(notifications.size()==0) 
+    return;
+  
+  timer ++;
+  if(timer > 240){
+    for(int i = 0; i < max(floor(0.7 * notifications.size()),1); i++){
+      notifications.remove(i);
+    }
+    timer = 0;
+  }
+  
+  float h = TEXTSIZE;
+  for(int i = notifications.size()-1; i >=0; i--){
+    text(notifications.get(i), width, height-h);
+    h+=TEXTSIZE;
+  }
+}
+
+void Save(){
+  String filePath = filepath(fileNameField.Text());
+  if(!fileNameField.isTyping){
+    SaveProject(filePath);
+  }
+}
+
+void Load(){
+  String filePath = filepath(fileNameField.Text());
+  if(!fileNameField.isTyping){
+    LoadProject(filePath);
+  }
 }
 
 void drawArrow(float x, float y, float size, int dir, boolean vertical){
