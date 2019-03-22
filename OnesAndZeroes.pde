@@ -123,6 +123,8 @@ class UIElement{
 class Pin extends UIElement implements Comparable<Pin>{
   protected LogicGate chip;
   protected LogicGate abstractedChip;
+  protected String name = "pin of some sort";
+  int align = CENTER;
   
   public int compareTo(Pin other){
     return Float.compare(y,other.y);
@@ -172,6 +174,27 @@ class Pin extends UIElement implements Comparable<Pin>{
     super.Draw();
   }
   
+  void nameUI(int al){
+    fill(foregroundCol);
+    textAlign(al);
+    textSize(h);
+    int sign = (al == LEFT ? 1 :  (al == RIGHT ? -1 : 0));
+    float x1=WorldX()+(sign*w);
+    float y1=WorldY()-h/2;
+    float textW = textWidth(name);
+    text(name,x1,WorldY()+h/4);
+    
+    textSize(TEXTSIZE);
+    
+    if(mouseInside(x1,y1,textW,h)){
+      noFill();
+      rect(x1,y1,textW,h);
+      if(mousePressed){
+        LinkTextField(x1, WorldY(),h, this,al);
+      }
+    }
+  }
+  
   public void UpdatePin(){
     if(Value()!=lastValue){
       OnValueChange();
@@ -192,6 +215,7 @@ class InPin extends Pin{
   
   public InPin(LogicGate p){
     super(p);
+    name = "i";
   }
   
   public void Connect(OutPin in){
@@ -207,6 +231,7 @@ class InPin extends Pin{
   @Override
   public void Draw(){
     super.Draw();
+    nameUI(LEFT);
   }
   
   public void DrawLink(){
@@ -272,6 +297,7 @@ class InPin extends Pin{
 class OutPin extends Pin{    
   OutPin(LogicGate p){
     super(p);
+    name = "o";
   }
   
   public void SetValue(boolean v){
@@ -298,6 +324,7 @@ class OutPin extends Pin{
   public void Draw(){
     fill(Value() ? trueCol : falseCol);
     super.Draw();
+    nameUI(RIGHT);
   }
   
   @Override
@@ -550,16 +577,13 @@ abstract class BinaryGate extends LogicGate{
     inputs = new InPin[2];
     inputs[0] = new InPin(this);
     inputs[1] = new InPin(this);
-    /*
-    inputs[0] = new InPin(this);
-    inputs[0].MoveTo(-w/2-inputs[0].w/2,inputs[0].h);
-    inputs[1] = new InPin(this);
-    inputs[1].MoveTo(-w/2-inputs[1].w/2,-inputs[1].h);
-    */
+    inputs[0].name = "a";
+    inputs[1].name = "b";
     ArrangeInputs();
     
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
+    outputs[0].name = "out";
     ArrangeOutputs();
   }
 }
@@ -681,7 +705,8 @@ class Ticker extends LogicGate{
       inputs[i]=new InPin(this);
       inputs[i].w = w/16.0;
       inputs[i].h = inputs[i].w;
-      inputs[i].MoveTo(-w/2-inputs[i].w/2, -h/2 + inputs[0].h/2 + i * inputs[i].h); 
+      inputs[i].MoveTo(-w/2-inputs[i].w/2, -h/2 + inputs[0].h/2 + i * inputs[i].h);
+      inputs[i].name = str(0x1<<i);
     }
     
     outputs = new OutPin[1];
@@ -738,7 +763,7 @@ class Ticker extends LogicGate{
 class RelayGate extends LogicGate{
   public RelayGate(){
     super();
-    w=15;
+    w=20;
     h=15;
     inputs = new InPin[1];
     inputs[0] = new InPin(this);
@@ -1195,7 +1220,6 @@ class LogicGateGroup extends LogicGate{
     //find the bounding box for the group
     //also find the abstraction level
     //also find exposed input pins
-    
     float minX=gates[0].x;
     float maxX=gates[0].x;
     float minY=gates[0].y; 
@@ -1304,7 +1328,6 @@ class LogicGateGroup extends LogicGate{
     }
     
     super.Draw();
-    noFill();
   }
   
   @Override
@@ -1435,18 +1458,52 @@ class StringMenu extends UIElement{
   }
 }
 
+TextLabel pinNameInput;
+Pin pinToEditName;
+CallbackFunction setNameCallback = new CallbackFunction(){
+  @Override
+  public void f(){
+    SetName();
+  }
+}; 
+void LinkTextField(float x, float y, float h, Pin p, int align){
+  pinToEditName = p;
+  pinNameInput.Show(x,y,h,align,setNameCallback);
+}
+
+void SetName(){
+  pinToEditName.name = pinNameInput.Text();
+}
+
+
 //will be used to input names and stuff
 class TextInput extends UIElement{
   boolean isTyping = false;
   boolean startedTyping = false;
   boolean persistent = false;
+  boolean clicked1 = false;
   int align;
   char lastKey = 'r';
   float x0,y0,w0,h0;
+  CallbackFunction f;
+  
+  TextInput(){
+    w=100;
+  }
+  
   public void Show(float x1, float y1, float h1,int aline){
+    Show(x1,y1,h1,aline,null);
+  }
+  
+  public void Show(float x1, float y1, float h1,int align,CallbackFunction f1){
     isTyping = true;
-    x=x1;y=y1;h=h1; align = aline;
-    x0=x;y0=y;h0=h;w0=w;
+    x=x1;y=y1;h=h1; this.align = align;
+    x0=x;y0=y;h0=h;
+    textSize(h);
+    w0 = max(h*5,textWidth(edited)+10);
+    textSize(TEXTSIZE);
+    f=f1;
+    updateDimensions(edited);
   }
   
   protected String text = "";
@@ -1457,14 +1514,14 @@ class TextInput extends UIElement{
   }
   
   private boolean isLegit(char c){
-    return (((c>='0')&&(c<='9'))||((c>='a')&&(c<='z'))||((c>='A')&&(c<='Z')))&&("(){}[]/.,;'\" \\=!@#$%^&*~`".indexOf(c)==-1);
+    return (((c>='0')&&(c<='9'))||((c>='a')&&(c<='z'))||((c>='A')&&(c<='Z')));//&&("(){}[]/.,;'\"\\=!@#$%^&*~`".indexOf(c)==-1);
   }
   
   private void drawContents(String str){
     updateDimensions(str);
     stroke(foregroundCol);
     strokeWeight(1/scale);
-    noFill();
+    fill(backgroundCol);
     super.Draw();
     strokeWeight(1);
     fill(foregroundCol);
@@ -1477,13 +1534,12 @@ class TextInput extends UIElement{
   }
   
   protected void updateDimensions(String str){
-    float newW = max(100,textWidth(str)+10);
+    w = max(h*5,textWidth(str)+10);
     if(align==LEFT){
-      x += (newW - w)/2.0;
+      x = x0 + (w)/2.0;
     } else if(align==RIGHT){
-      x -= (newW - w)/2.0;
+      x = x0 - (w)/2.0;
     }
-    w = newW;
   }
   
   protected boolean isLegit(String s){
@@ -1509,6 +1565,9 @@ class TextInput extends UIElement{
           isTyping = false;
           if(isLegit(edited)){
             text = edited;
+            if(f!=null){
+              f.f();
+            }
           }
         } else if(keyThatWasPushed=='\b'){
           if(edited.length()>0){
@@ -1525,12 +1584,23 @@ class TextInput extends UIElement{
       startedTyping = false;
     }
     textSize(TEXTSIZE);
+    if(!clicked1){
+      if(mousePressed){
+        if(!mouseInside(WorldX()-w/2,WorldY()-h/2,w,h)){
+          isTyping = false;
+        }
+      }
+    }
   }
 }
 
 class TextLabel extends TextInput{
   String label;
-  boolean clicked1 = false;
+  TextLabel(String l){
+    label = l;
+    text = "";
+  }
+  
   TextLabel(String l, String text1, float x, float y, float h,int aline){
     text = text1;
     Show(x,y,h,aline);
@@ -1550,16 +1620,12 @@ class TextLabel extends TextInput{
   @Override
   void Draw(){
     super.Draw();
-    textSize(h);
-    textAlign(align);
-    text(label, WorldX()-w/2,WorldY()+h/4);
-    textSize(TEXTSIZE);
-    if(!clicked1){
-      if(mousePressed){
-        if(!mouseInside(WorldX()-w/2,WorldY()-h/2,w,h)){
-          isTyping = false;
-        }
-      }
+    if(isTyping||persistent){
+      textSize(h);
+      textAlign(align);
+      int sign = (align==LEFT ? 1 : (align==RIGHT ? -1 : 0));
+      text(label, WorldX()+sign*w/2,WorldY()+h/4);
+      textSize(TEXTSIZE);
     }
   }
 }
@@ -1606,8 +1672,8 @@ class Button extends UIElement{
 }
 
 //INPUT SYSTEM copy pasted from another personal project
-boolean[] keyJustPressed = new boolean[23];
-boolean[] keyStates = new boolean[23];
+boolean[] keyJustPressed = new boolean[25];
+boolean[] keyStates = new boolean[25];
 boolean keyDown(int Key) { return keyStates[Key]; }
 boolean keyPushed(int Key){
   if(!keyDown(Key))
@@ -1643,6 +1709,8 @@ final int FSlashKey = 19;
 final int TKey = 20;
 final int GKey = 21;
 final int LKey = 22;
+final int PlusKey = 23;
+final int MinusKey = 24;
 
 boolean shiftChanged = false;
 //maps the processing keys to integers in our key state array, so we can add new keys as we please
@@ -1756,12 +1824,16 @@ void setup(){
   keyMappings.put('G',GKey);
   keyMappings.put('l',LKey);
   keyMappings.put('L',LKey);
+  keyMappings.put('=',PlusKey);
+  keyMappings.put('+',PlusKey);
+  keyMappings.put('-',MinusKey);
+  keyMappings.put('_',MinusKey);
   
   menus = new ArrayList<UIElement>();
   UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
     @Override
     public void f(int i){
-      AddGate(i);
+      AddPrimitiveGate(i);
     }
   });
   
@@ -1772,7 +1844,7 @@ void setup(){
   UIElement outputGateAddMenu = new StringMenu(outputNames, "ADD OUTPUT GATE", new CallbackFunctionInt(){
     @Override
     public void f(int i){
-      AddGate(i+gateNames.length);
+      AddOutputGate(i);
     }
   });
   outputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
@@ -1814,8 +1886,11 @@ void setup(){
                   
   menus.add(loadButton);
   
+  pinNameInput = new TextLabel("(New pin name)");
+  menus.add(pinNameInput);
+  
   cursor.MoveTo(100,-100);
-  AddGate(0);
+  AddPrimitiveGate(0);
 }
 
 Button saveButton;
@@ -1986,7 +2061,7 @@ void AddGateGroup(int i){
 }
 
 String outputNames[] = {"LCD Pixel", "24-bit Pixel","Int32 readout"};
-String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand","Ticker"};
+String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand","Ticker"}; 
 final int INPUTGATE = 0;
 final int ANDGATE = 1;
 final int ORGATE = 2;
@@ -1996,6 +2071,8 @@ final int TICKGATE = 5;
 final int LCDGATE = TICKGATE + 1;
 final int PIXELGATE = TICKGATE + 2;
 final int BASE10GATE = TICKGATE + 5;
+int primitiveGates[] = {INPUTGATE, ANDGATE, ORGATE, NOTGATE, NANDGATE, TICKGATE};
+int outputGates[] = {LCDGATE, PIXELGATE,BASE10GATE};
 
 LogicGate CreateGate(int g){
   LogicGate lg;
@@ -2045,8 +2122,15 @@ LogicGate CreateGate(int g){
 }
 
 //This function can add every primitive gate
-void AddGate(int g){
-  LogicGate lg = CreateGate(g);
+void AddPrimitiveGate(int g){
+  LogicGate lg = CreateGate(primitiveGates[g]);
+  lg.x=cursor.WorldX();
+  lg.y=cursor.WorldY();
+  circuit.add(lg);
+}
+
+void AddOutputGate(int g){
+  LogicGate lg = CreateGate(outputGates[g]);
   lg.x=cursor.WorldX();
   lg.y=cursor.WorldY();
   circuit.add(lg);
@@ -2204,7 +2288,6 @@ float DrawInstructions(String[] actions,float h, float v,float spacing){
 }
 
 //will be used by various things for renaming, etc
-TextInput textField = new TextInput();
 TextLabel fileNameField;  
 
 void DrawAvailableActions(){
@@ -2388,8 +2471,6 @@ void draw(){
     i++;
   }
   
-  textField.Draw();
-  
   strokeWeight(1);
   //handle all key shortcuts
   if(!fileNameField.isTyping){
@@ -2404,6 +2485,13 @@ void draw(){
       }
     }
     textAlign(RIGHT);
+    
+    if(keyPushed(PlusKey)){
+      zoom(1);
+    }
+    if(keyPushed(MinusKey)){
+      zoom(-1);
+    }
   }
   
   Cleanup();
@@ -2454,10 +2542,14 @@ void drawArrow(float x, float y, float size, int dir, boolean vertical){
   }
 }
 
+void zoom(int dir){
+  xPos = lerp(xPos,MouseXPos(),0.1*-dir);
+  yPos = lerp(yPos,MouseYPos(),0.1*-dir);
+  adjustView(0,0,-zoomSpeed*dir);
+}
+
 void mouseWheel(MouseEvent e){
-  xPos = lerp(xPos,MouseXPos(),0.1*-e.getCount());
-  yPos = lerp(yPos,MouseYPos(),0.1*-e.getCount());
-  adjustView(0,0,-zoomSpeed*e.getCount());
+  zoom(e.getCount());
 }
 
 void drawCrosshair(float x,float y, float r){
