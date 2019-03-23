@@ -394,13 +394,13 @@ LogicGate gateUnderMouse = null;
 
 //The base class for all logic gates. contains most of the functionality
 abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
-  String title = "uninitializedGate";
+  String title = "?";
   public boolean deleted = false;
   protected boolean showText = true;
   boolean drawPins = true;
   protected int level = 0;
   InPin[] inputs;
-  
+
   //This will be set by any function traversing a list of logicgates
   public int arrayIndex;
   
@@ -424,7 +424,7 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     }
   }
   
-  public void UpdateDimensions(){
+  public void UpdateDimensions(){ //<>//
     if(inputs.length==0)
       return;
     
@@ -436,7 +436,7 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     for(Pin p : inputs){
       maxInputWidth = max(maxInputWidth,p.NameWidth());
     }
-    float maxOutputWidth = 5;
+    float maxOutputWidth = 1;
     if(outputs!=null){
       maxOutputWidth = outputs[0].NameWidth();
       for(Pin p : outputs){
@@ -586,18 +586,21 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   public void Draw(){
     stroke(foregroundCol);
     
-    if(drawPins){
-      if(inputs!=null){
-        for(int i = 0; i < inputs.length; i++){
-          inputs[i].Draw();
+    if(draggedElement != this){
+      if(drawPins){
+        if(inputs!=null){
+          for(int i = 0; i < inputs.length; i++){
+            inputs[i].Draw();
+          }
         }
-      }
-      if(outputs!=null){
-        for(int i = 0; i < outputs.length; i++){
-          outputs[i].Draw();
+        if(outputs!=null){
+          for(int i = 0; i < outputs.length; i++){
+            outputs[i].Draw();
+          }
         }
       }
     }
+    
     
     if(outputs!=null){
       if(outputs.length>0){
@@ -642,7 +645,6 @@ abstract class BinaryGate extends LogicGate{
     super();
     w = 50; 
     h = 30;    
-    
     inputs = new InPin[2];
     inputs[0] = new InPin(this);
     inputs[1] = new InPin(this);
@@ -651,8 +653,7 @@ abstract class BinaryGate extends LogicGate{
     
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
-    outputs[0].name = "out";
-    UpdateDimensions();
+    outputs[0].name = "out"; //<>//
   }
 }
 
@@ -660,6 +661,7 @@ class AndGate extends BinaryGate{
   public AndGate(){
     super();
     title = "&";
+    UpdateDimensions();
   }
   
   @Override
@@ -684,6 +686,7 @@ class OrGate extends BinaryGate{
   public OrGate(){
     super();
     title = "|";
+    UpdateDimensions();
   }
   
   @Override
@@ -742,6 +745,7 @@ class NandGate extends BinaryGate{
   public NandGate(){
     super();
     title = "!&";
+    UpdateDimensions();
   }
   
   @Override
@@ -1615,6 +1619,7 @@ void LinkTextField(float x, float y, float h, Pin p, int align){
 void SetName(){
   pinToEditName.SetName(pinNameInput.Text());
   pinToEditName.UpdateDimensions();
+  pinToEditName = null;
 }
 
 
@@ -1709,6 +1714,10 @@ class TextInput extends UIElement{
             text = edited;
             if(f!=null){
               f.f();
+              //we need to remove references to it
+              if(!persistent){
+                f=null;
+              }
             }
           }
         } else if(keyThatWasPushed=='\b'){
@@ -1722,6 +1731,8 @@ class TextInput extends UIElement{
     } else {
       if(persistent){
         drawContents(text);
+      } else {
+        f = null;
       }
       startedTyping = false;
     }
@@ -2059,7 +2070,7 @@ void UpdateGroups(){
     int dotIndex = f.lastIndexOf('.');
     if(dotIndex>=0){
       println(f.substring(dotIndex,f.length()));
-      println(f); //<>//
+      println(f);
       if(f.substring(dotIndex,f.length()).equals(".txt")){
         finalGroups.add(f.substring(0,dotIndex));
       }
@@ -2488,9 +2499,11 @@ void draw(){
   }
   
   DrawAvailableActions();
-  fill(0,255,0);
+  fill(255,0,0);
   textAlign(RIGHT);
+  textSize(16);
   DrawNotifications();
+  textSize(TEXTSIZE);
     
   //needs to be manually reset
   mouseOver = false;
