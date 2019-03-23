@@ -126,14 +126,27 @@ class Pin extends UIElement implements Comparable<Pin>{
   protected String name = "pin of some sort";
   int align = CENTER;
   
+  public void UpdateDimensions(){
+    abstractedChip.UpdateDimensions();
+  }
+  
   public int compareTo(Pin other){
     return Float.compare(y,other.y);
   }
   
+  public float NameWidth(){
+    textSize(h);
+    float wid = textWidth(name);
+    textSize(TEXTSIZE);
+    return wid;
+  }
+  
+  //returns the chip that the pin is logically connected to 
   public LogicGate ActualChip(){
     return chip;
   }
   
+  //returns the chip/group that it is visually connected to
   public LogicGate Chip(){
     return abstractedChip;
   }
@@ -178,11 +191,19 @@ class Pin extends UIElement implements Comparable<Pin>{
     fill(foregroundCol);
     textAlign(al);
     textSize(h);
-    int sign = (al == LEFT ? 1 :  (al == RIGHT ? -1 : 0));
-    float x1=WorldX()+(sign*w);
-    float y1=WorldY()-h/2;
+    float x1;
+    float y1 = WorldY()-h/2;
     float textW = textWidth(name);
-    text(name,x1,WorldY()+h/4);
+    if(al==LEFT){
+      x1 = WorldX()+w;
+    } else if(al==RIGHT){
+      x1 = WorldX()-w-textW;
+    } else {
+      x1 = WorldX();
+    }
+    
+    int sign = (al == LEFT ? 1 :  (al == RIGHT ? -1 : 0));
+    text(name,WorldX()+sign*w,WorldY()+h/4);
     
     textSize(TEXTSIZE);
     
@@ -190,7 +211,7 @@ class Pin extends UIElement implements Comparable<Pin>{
       noFill();
       rect(x1,y1,textW,h);
       if(mousePressed){
-        LinkTextField(x1, WorldY(),h, this,al);
+        LinkTextField(WorldX()+sign*w, WorldY(),h, this,al);
       }
     }
   }
@@ -388,6 +409,22 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     }
   }
   
+  public void UpdateDimensions(){
+    float maxInputWidth = inputs[0].NameWidth();
+    for(Pin p : inputs){
+      maxInputWidth = max(maxInputWidth,p.NameWidth());
+    }
+    float maxOutputWidth = outputs[0].NameWidth();
+    for(Pin p : outputs){
+      maxOutputWidth = max(maxOutputWidth,p.NameWidth());
+    }
+    h = 2*max(inputs[0].h*inputs.length,outputs[0].h*outputs.length);
+    w = textWidth(title) + 5 + maxInputWidth + maxOutputWidth;
+    
+    ArrangeInputs();
+    ArrangeOutputs();
+  }
+  
   int compareTo(LogicGate lg){
     return Integer.compare(level,lg.level);
   }
@@ -515,19 +552,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   
   @Override
   public void Draw(){
-    if(outputs!=null){
-      if(outputs.length>0){
-        fill(outputs[0].Value() ? trueCol : falseCol);
-      }
-    }
-    stroke(foregroundCol);
-    super.Draw();
-    if(showText){
-      textAlign(CENTER);
-      fill(foregroundCol);
-      text(title,WorldX(),WorldY()+TEXTSIZE/4.0);
-    }
-    
     stroke(foregroundCol);
     
     if(drawPins){
@@ -536,7 +560,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
           inputs[i].Draw();
         }
       }
-      
       if(outputs!=null){
         for(int i = 0; i < outputs.length; i++){
           outputs[i].Draw();
@@ -544,8 +567,22 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
       }
     }
     
+    if(outputs!=null){
+      if(outputs.length>0){
+        fill(outputs[0].Value() ? trueCol : falseCol);
+      }
+    }
+    
+    super.Draw();
+    
     for(int i = 0; i < inputs.length; i++){
       inputs[i].DrawLink();
+    }
+    
+    if(showText){
+      textAlign(CENTER);
+      fill(foregroundCol);
+      text(title,WorldX(),WorldY()+TEXTSIZE/4.0);
     }
   }
   
@@ -579,12 +616,11 @@ abstract class BinaryGate extends LogicGate{
     inputs[1] = new InPin(this);
     inputs[0].name = "a";
     inputs[1].name = "b";
-    ArrangeInputs();
     
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
     outputs[0].name = "out";
-    ArrangeOutputs();
+    UpdateDimensions();
   }
 }
 
@@ -649,6 +685,7 @@ class NotGate extends LogicGate{
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
     outputs[0].MoveTo(w/2+outputs[0].w/2,0);
+    UpdateDimensions();
   }
   
   @Override
@@ -696,7 +733,7 @@ class NandGate extends BinaryGate{
 class Ticker extends LogicGate{
   public Ticker(){
     super();
-    title = "ticc";
+    title = "t:N/A";
     showText = false;
     inputs = new InPin[16];
     w = 50;
@@ -706,12 +743,12 @@ class Ticker extends LogicGate{
       inputs[i].w = w/16.0;
       inputs[i].h = inputs[i].w;
       inputs[i].MoveTo(-w/2-inputs[i].w/2, -h/2 + inputs[0].h/2 + i * inputs[i].h);
-      inputs[i].name = str(0x1<<i);
+      inputs[i].name = str(pow(2,i));
     }
     
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
-    ArrangeOutputs();
+    UpdateDimensions();
   }
   
   int phase = 0;
@@ -719,10 +756,12 @@ class Ticker extends LogicGate{
   @Override
   public void UpdateIOPins(){
     super.UpdateIOPins();
-    phase ++;
-    if(phase > ticks){
-      outputs[0].SetValue(!outputs[0].Value());
-      phase = 0;
+    if(ticks>0){
+      phase ++;
+      if(phase > ticks){
+        outputs[0].SetValue(!outputs[0].Value());
+        phase = 0;
+      }
     }
   }
   
@@ -731,8 +770,13 @@ class Ticker extends LogicGate{
     super.Draw();
     fill(foregroundCol);
     textAlign(CENTER);
-    text("t: "+phase,WorldX(),WorldY()-6);
-    text("tn: "+ticks,WorldX(),WorldY()+6);
+    if(ticks>0){
+      text("t: "+phase,WorldX(),WorldY()-6);
+      text("tn: "+ticks,WorldX(),WorldY()+6);
+    } else {
+      text("t:N/A",WorldX(),WorldY()-6);
+      text("tn:N/A",WorldX(),WorldY()+6);
+    }
   }
   
   @Override
@@ -740,6 +784,7 @@ class Ticker extends LogicGate{
     ticks = 0;
     for(int i = 0; i < inputs.length; i++){
       if(inputs[i].Value()){
+        //we dont want negative numbers from bit shifting
         ticks += pow(2,i);
       }
     }
@@ -767,12 +812,11 @@ class RelayGate extends LogicGate{
     h=15;
     inputs = new InPin[1];
     inputs[0] = new InPin(this);
-    inputs[0].MoveTo(-w/2-inputs[0].w/2,0);
     
     title = ">";
     outputs = new OutPin[1];
     outputs[0] = new OutPin(this);
-    outputs[0].MoveTo(w/2+outputs[0].w/2,0);
+    UpdateDimensions();
   }
   
   @Override
@@ -1299,9 +1343,29 @@ class LogicGateGroup extends LogicGate{
     hw = textWidth(newName)+hh;
   }
   
-  @Override void OnMouseRelease(){
-    if(draggedElement!=this){
-      expose = !expose;
+  @Override 
+  void OnMouseRelease(){
+    //text(name,WorldX(),WorldY()+TEXTSIZE/4);
+    
+    float textW = textWidth(name);
+    float x1 = WorldX() - textW/2;
+    float y1 = WorldY()-TEXTSIZE/2;
+    
+    if(mouseInside(x1,y1,textW,TEXTSIZE)){
+      if(draggedElement!=this){
+        expose = !expose;
+      }
+    }
+  }
+  
+  @Override 
+  void OnHover(){
+    float textW = textWidth(name);
+    float x1 = WorldX() - textW/2;
+    float y1 = WorldY()-TEXTSIZE/2;
+    if(mouseInside(x1,y1,textW,TEXTSIZE)){
+      fill(gateHoverCol);
+      rect(x1,y1,textW,TEXTSIZE);
     }
   }
   
@@ -1473,6 +1537,7 @@ void LinkTextField(float x, float y, float h, Pin p, int align){
 
 void SetName(){
   pinToEditName.name = pinNameInput.Text();
+  pinToEditName.UpdateDimensions();
 }
 
 
