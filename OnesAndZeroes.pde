@@ -13,7 +13,9 @@ final int TEXTSIZE = 12;
 color backgroundCol = color(255);
 color foregroundCol = color(0);
 color trueCol = color(0,255,0,100);
+color trueColOpaque = color(0,255,0);
 color falseCol = color(255,0,0,100);
+color falseColOpaque = color(0,255,0);
 color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
 color warningCol = color(255,0,0);
@@ -125,6 +127,19 @@ class Pin extends UIElement implements Comparable<Pin>{
   protected LogicGate abstractedChip;
   protected String name = "pin of some sort";
   int align = CENTER;
+  
+  public String Name(){
+    return name;
+  }
+  
+  public void SetName(String val){
+    name = val;
+    nameChanged = true;
+    abstractedChip.UpdateDimensions();
+  }
+  
+  protected boolean nameChanged = false;
+  public boolean NameChanged(){return nameChanged;}
   
   public void UpdateDimensions(){
     abstractedChip.UpdateDimensions();
@@ -410,13 +425,23 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   public void UpdateDimensions(){
-    float maxInputWidth = inputs[0].NameWidth();
+    if(inputs.length==0)
+      return;
+    
+    float maxInputWidth = 3;
+    if(inputs.length>0){
+      inputs[0].NameWidth();
+    }
+    
     for(Pin p : inputs){
       maxInputWidth = max(maxInputWidth,p.NameWidth());
     }
-    float maxOutputWidth = outputs[0].NameWidth();
-    for(Pin p : outputs){
-      maxOutputWidth = max(maxOutputWidth,p.NameWidth());
+    float maxOutputWidth = 5;
+    if(outputs!=null){
+      maxOutputWidth = outputs[0].NameWidth();
+      for(Pin p : outputs){
+        maxOutputWidth = max(maxOutputWidth,p.NameWidth());
+      }
     }
     h = 2*max(inputs[0].h*inputs.length,outputs[0].h*outputs.length);
     w = textWidth(title) + 5 + maxInputWidth + maxOutputWidth;
@@ -465,13 +490,21 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   public String GetParts(){
-    //looks like: (partID,x,y,0110100010)
+    //looks like: (partID,x,y,|I|inputName, inputname2, |O|outputname,value,name,value)
     //will have to change for other parts
     String s = "("+PartIDString() + "," + str(x) + "," + str(y)+","; 
-    s+="O";//so we know when the outputs are coming
+    s+="|I|";//have input metadata
+    for(int i = 0; i < inputs.length;i++){
+      //this way, the names are only saved once, where they are necessary
+      if(inputs[i].Chip()==this){
+        s+= inputs[i].Name();
+      }
+      s+= ",";
+    }
+    s+="|O|";//have output metadata
     if(outputs!=null){
       for(int i = 0; i < outputs.length;i++){
-        s+= outputs[i].Value() ? "1" : "0";
+        s+= outputs[i].Name() + "," + (outputs[i].Value() ? "1" : "0") + ",";
       }
     }
     s+=")";
@@ -493,7 +526,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
           s+= out.Chip().OutputIndex(out);
         }
       }
-      
       s+="]";
     }
     return s;
@@ -1071,6 +1103,10 @@ boolean LoadProject(String filePath){
 
 LogicGate[] LoadGatesFromFile(String filepath){
   String[] file = loadStrings(filepath);
+  if(file==null){
+    println("Not a file :(");
+    return null;
+  }
   if(file.length < 2){
     println("not my type of file tbh");
     return null; 
@@ -1151,15 +1187,42 @@ LogicGate[] RecursiveLoad(String data){
 }
 
 //assigns a part's outputs. not to be called on it's own
-void assignOutputs(LogicGate lg, String outputs){
+void assignPins(LogicGate lg, String pins){
+  int start = pins.indexOf('|'+1);
+  start = pins.indexOf('|',start+1)+1;
+  int end;
+  for(int i = 0; i < lg.inputs.length; i++){
+    if(pins.charAt(start)==','){
+      start++;
+      continue;
+    }
+    end = pins.indexOf(',',start);
+    lg.inputs[i].SetName(pins.substring(start,end));
+    start = end+1;
+  }
   if(lg.outputs==null)
     return;
-  for(int i = 0; i < outputs.length(); i++){
-    lg.outputs[i].SetValue((outputs.charAt(i)=='1'));
+    
+  start=pins.indexOf("|", start)+1;
+  start=pins.indexOf("|", start)+1;
+  end = pins.indexOf(',',start);
+  
+  for(int i = 0; i < lg.outputs.length; i++){
+    if(pins.charAt(start)==','){
+      start++;
+    } else {
+      //We must have a name to assign
+      end = pins.indexOf(',',start);
+      lg.outputs[i].SetName(pins.substring(start,end));
+    }
+    //whether we assigned a name or not, there should be a 1 or 0 every odd comma
+    start = end+1;
+    lg.outputs[i].SetValue(pins.charAt(start)=='1');
+    start = pins.indexOf(',',start)+1;
   }
 }
 
-//assigns a group it's x,y,w,h values and inputs. start is the index of the start of the first value, and end is the ). not to be called on it's own
+//assigns a group it's x,y,w,h values, pin names, and output values. start is the index of the start of the first value, and end is the ). not to be called on it's own
 void loadMetadata(LogicGate lg, String data, int start, int end){
   int a = start;
   int b = data.indexOf(',',a+1);
@@ -1169,8 +1232,8 @@ void loadMetadata(LogicGate lg, String data, int start, int end){
   lg.y = float(data.substring(a,b));
 
   a=b+1;
-  if(data.charAt(a)=='O'){
-    assignOutputs(lg,data.substring(a+1,end));
+  if(data.charAt(a)=='|'){
+    assignPins(lg,data.substring(a+1,end));
     return;
   }
   //otherwise we have to load in the width and height and then do so
@@ -1179,7 +1242,7 @@ void loadMetadata(LogicGate lg, String data, int start, int end){
   a = b+1;
   b = data.indexOf(',',a);
   lg.h = float(data.substring(a,b));
-  assignOutputs(lg,data.substring(a+1,end));
+  assignPins(lg,data.substring(a+1,end));
 }
 
 //loads a primitive part from a string.
@@ -1219,7 +1282,7 @@ String CircuitString(ArrayList<LogicGate> cir){
 }
 
 String GateString(LogicGate[] gates){
-  //looks like: {(part1),(part2),..,(partn)|<part>[otherPart,outputFromOtherOart],<soOn>[AndSoForth]}
+  //looks like: {(part1)|pinnames,(part2)|pinnames..,(partn)|pinnames,|<part>[otherPart,outputFromOtherOart],<soOn>[AndSoForth]}
   String s = "{";
   s+=gates.length+",";
   //get all of the parts, and index the gates
@@ -1332,21 +1395,25 @@ class LogicGateGroup extends LogicGate{
     outputs = unusedOutputs.toArray(new OutPin[unusedOutputs.size()]);
     Arrays.sort(outputs);
     
-    hw = max(inputs.length,outputs.length)*inputs[0].h*2;
-    hh = hw;
+    if((inputs.length==0)&&(outputs.length==0)){
+      notifications.add("THIS GROUP HAS NO INPUTS OR OUTPUTS, AND IS COMPLETELY POINTLESS.");
+      notifications.add("Remember to expose inputs and outputs using relay points, and to avoid using CTRL+G and instead load saved parts from the 'add group' menu");
+    } else if(inputs.length==0){
+      notifications.add("THIS GROUP HAS NO INPUTS AND WON'T BEHAVE PROPERLY :v");
+    } else if(outputs.length==0){
+      notifications.add("THIS GROUP HAS NO OUTPUTS AND MIGHT BE REDUNDANT!");
+    }
     
     level = maxAbstraction+1;
+    UpdateDimensions();
   }
   
   void SetName(String newName){
     name = newName;
-    hw = textWidth(newName)+hh;
   }
   
   @Override 
   void OnMouseRelease(){
-    //text(name,WorldX(),WorldY()+TEXTSIZE/4);
-    
     float textW = textWidth(name);
     float x1 = WorldX() - textW/2;
     float y1 = WorldY()-TEXTSIZE/2;
@@ -1354,12 +1421,15 @@ class LogicGateGroup extends LogicGate{
     if(mouseInside(x1,y1,textW,TEXTSIZE)){
       if(draggedElement!=this){
         expose = !expose;
+        exposeChanged = true;
       }
     }
   }
   
   @Override 
   void OnHover(){
+    super.OnHover();
+    if(name!=null);
     float textW = textWidth(name);
     float x1 = WorldX() - textW/2;
     float y1 = WorldY()-TEXTSIZE/2;
@@ -1369,23 +1439,30 @@ class LogicGateGroup extends LogicGate{
     }
   }
   
+  boolean exposeChanged = false;
+  
   @Override
   public void Draw(){
+    if(exposeChanged){
+      exposeChanged = false;
+      if(expose){
+        h = eh;
+        w = ew;
+        
+        ArrangeInputs();
+        ArrangeOutputs();
+      } else {
+        UpdateDimensions();
+      }
+    }
+    
     if(expose){
-      h = eh;
-      w = ew;
-      
       for(LogicGate lg : gates){
         lg.Draw();
       }
-    } else {
-      h = hh;
-      w = hw;
     }
     
-    ArrangeInputs();
-    ArrangeOutputs();
-    
+    fill(foregroundCol);
     if(name!=null){
       textAlign(CENTER);
       text(name,WorldX(),WorldY()+TEXTSIZE/4);
@@ -1536,7 +1613,7 @@ void LinkTextField(float x, float y, float h, Pin p, int align){
 }
 
 void SetName(){
-  pinToEditName.name = pinNameInput.Text();
+  pinToEditName.SetName(pinNameInput.Text());
   pinToEditName.UpdateDimensions();
 }
 
