@@ -15,7 +15,7 @@ color foregroundCol = color(0);
 color trueCol = color(0,255,0,100);
 color trueColOpaque = color(0,255,0);
 color falseCol = color(255,0,0,100);
-color falseColOpaque = color(0,255,0);
+color falseColOpaque = color(255,0,0);
 color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
 color warningCol = color(255,0,0);
@@ -272,7 +272,11 @@ class InPin extends Pin{
   
   public void DrawLink(){
     if(IsConnected()){
-      line(WorldX(),WorldY(),input.WorldX(),input.WorldY());
+      stroke(input.Value() ? trueColOpaque : falseColOpaque);
+      float hMid = (WorldX() + 2*input.WorldX())/3;
+      line(WorldX()+w/2,WorldY(),hMid,WorldY());
+      line(hMid, WorldY(), hMid, input.WorldY());
+      line(hMid, input.WorldY(),input.WorldX()-input.w/2, input.WorldY());
     }
   }
   
@@ -585,7 +589,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   @Override
   public void Draw(){
     stroke(foregroundCol);
-    
     if(draggedElement != this){
       if(drawPins){
         if(inputs!=null){
@@ -600,14 +603,7 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
         }
       }
     }
-    
-    
-    if(outputs!=null){
-      if(outputs.length>0){
-        fill(outputs[0].Value() ? trueCol : falseCol);
-      }
-    }
-    
+    noFill();
     super.Draw();
     
     for(int i = 0; i < inputs.length; i++){
@@ -1331,7 +1327,6 @@ class LogicGateGroup extends LogicGate{
   LogicGate[] gates;
   boolean expose = true;
   int numGates;
-  String name;
   //these dimensions are for when the inner gates are exposed
   float ew,eh;
   //`` are hidden
@@ -1350,8 +1345,7 @@ class LogicGateGroup extends LogicGate{
   //exposes all unlinked inputs and outputs
   LogicGateGroup(LogicGate[] gateArray){
     gates = gateArray;
-    title = "LG";
-    showText = false;
+    title = "Group";
     
     //find the bounding box for the group
     //also find the abstraction level
@@ -1426,7 +1420,7 @@ class LogicGateGroup extends LogicGate{
     
     if((inputs.length==0)&&(outputs.length==0)){
       notifications.add("THIS GROUP HAS NO INPUTS OR OUTPUTS, AND IS COMPLETELY POINTLESS.");
-      notifications.add("Remember to expose inputs and outputs using relay points, and to avoid using CTRL+G and instead load saved parts from the 'add group' menu");
+      notifications.add("Remember to expose inputs and outputs using relay points, and to avoid using CTRL+G and instead load saved parts from the 'add saved' menu");
     } else if(inputs.length==0){
       notifications.add("THIS GROUP HAS NO INPUTS AND WON'T BEHAVE PROPERLY :v");
     } else if(outputs.length==0){
@@ -1438,12 +1432,13 @@ class LogicGateGroup extends LogicGate{
   }
   
   void SetName(String newName){
-    name = newName;
+    title = newName;
+    exposeChanged=true;
   }
   
   @Override 
   void OnMouseRelease(){
-    float textW = textWidth(name);
+    float textW = textWidth(title);
     float x1 = WorldX() - textW/2;
     float y1 = WorldY()-TEXTSIZE/2;
     
@@ -1458,8 +1453,8 @@ class LogicGateGroup extends LogicGate{
   @Override 
   void OnHover(){
     super.OnHover();
-    if(name!=null);
-    float textW = textWidth(name);
+    if(title!=null);
+    float textW = textWidth(title);
     float x1 = WorldX() - textW/2;
     float y1 = WorldY()-TEXTSIZE/2;
     if(mouseInside(x1,y1,textW,TEXTSIZE)){
@@ -1489,12 +1484,6 @@ class LogicGateGroup extends LogicGate{
       for(LogicGate lg : gates){
         lg.Draw();
       }
-    }
-    
-    fill(foregroundCol);
-    if(name!=null){
-      textAlign(CENTER);
-      text(name,WorldX(),WorldY()+TEXTSIZE/4);
     }
     
     super.Draw();
