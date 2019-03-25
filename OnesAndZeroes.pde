@@ -1,4 +1,4 @@
-//---------A logic gate simulator----------
+//---------A logic gate simulator---------- //<>// //<>//
 //By Tejas Hegde
 //To add:
 // better save/load functionality to prevent accidental overwrites
@@ -704,6 +704,31 @@ class OrGate extends BinaryGate{
   @Override
   public int PartID(){
     return ORGATE;
+  }
+}
+
+class XorGate extends BinaryGate{
+  public XorGate(){
+    super();
+    title = "^";
+    UpdateDimensions();
+  }
+  
+  @Override
+  protected void UpdateLogic(){
+    outputs[0].SetValue(inputs[0].Value() ^ inputs[1].Value());
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new XorGate();
+    lg.CopyValues(this);
+    return lg;
+  }
+  
+  @Override
+  public int PartID(){
+    return XORGATE;
   }
 }
 
@@ -1986,7 +2011,7 @@ void setup(){
   UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
     @Override
     public void f(int i){
-      AddPrimitiveGate(i);
+      AddGate(CreateGate(primitiveGates[i]));
     }
   });
   
@@ -1997,7 +2022,7 @@ void setup(){
   UIElement outputGateAddMenu = new StringMenu(outputNames, "ADD OUTPUT GATE", new CallbackFunctionInt(){
     @Override
     public void f(int i){
-      AddOutputGate(i);
+      AddGate(CreateGate(outputGates[i]));
     }
   });
   outputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
@@ -2043,7 +2068,7 @@ void setup(){
   menus.add(pinNameInput);
   
   cursor.MoveTo(100,-100);
-  AddPrimitiveGate(0);
+  AddGate(CreateGate(INPUTGATE));
 }
 
 Button saveButton;
@@ -2212,20 +2237,23 @@ void AddGateGroup(int i){
   lg.SetName(filename);
   circuit.add(lg);
 }
-
-String outputNames[] = {"LCD Pixel", "24-bit Pixel","Int32 readout"};
-String gateNames[] = {"input / relay point","And", "Or", "Not", "Nand","Ticker"}; 
+ 
 final int INPUTGATE = 0;
 final int ANDGATE = 1;
 final int ORGATE = 2;
 final int NOTGATE = 3;
 final int NANDGATE = 4;
 final int TICKGATE = 5;
-final int LCDGATE = TICKGATE + 1;
-final int PIXELGATE = TICKGATE + 2;
-final int BASE10GATE = TICKGATE + 5;
-int primitiveGates[] = {INPUTGATE, ANDGATE, ORGATE, NOTGATE, NANDGATE, TICKGATE};
-int outputGates[] = {LCDGATE, PIXELGATE,BASE10GATE};
+final int LCDGATE = 6;
+final int PIXELGATE = 7;
+final int XORGATE = 8;
+final int BASE10GATE = 10;//there used to be 8 and 9
+
+//used for the menus
+String outputNames[] = {"LCD Pixel", "24-bit Pixel","Int32 readout"};
+int outputGates[] = {    LCDGATE,     PIXELGATE,     BASE10GATE};
+String gateNames[] = {"input / relay point", "And(&)",   "Or(|)",   "Xor(^)",   "Not(!)",   "Nand(!&)",   "Clock"};
+int primitiveGates[] = {INPUTGATE,           ANDGATE,   ORGATE,   XORGATE,     NOTGATE,     NANDGATE,   TICKGATE};
 
 LogicGate CreateGate(int g){
   LogicGate lg;
@@ -2240,6 +2268,10 @@ LogicGate CreateGate(int g){
     }
     case(ORGATE):{
       lg = new OrGate();
+      break;
+    }
+    case(XORGATE):{
+      lg = new XorGate();
       break;
     }
     case(NOTGATE):{
@@ -2275,15 +2307,7 @@ LogicGate CreateGate(int g){
 }
 
 //This function can add every primitive gate
-void AddPrimitiveGate(int g){
-  LogicGate lg = CreateGate(primitiveGates[g]);
-  lg.x=cursor.WorldX();
-  lg.y=cursor.WorldY();
-  circuit.add(lg);
-}
-
-void AddOutputGate(int g){
-  LogicGate lg = CreateGate(outputGates[g]);
+void AddGate(LogicGate lg){
   lg.x=cursor.WorldX();
   lg.y=cursor.WorldY();
   circuit.add(lg);
