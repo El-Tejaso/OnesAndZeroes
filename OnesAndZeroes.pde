@@ -1,10 +1,7 @@
 //---------A logic gate simulator---------- //<>// //<>//
 //By Tejas Hegde
 //To add:
-// better save/load functionality to prevent accidental overwrites
-// Named nodes for groups
-// Expand/collapse groups
-// named groups
+// Saving will reference the group name rather than a new part when a checkbox is enabled 
 //-----------------------------------------
 import java.util.Arrays;
 
@@ -145,8 +142,9 @@ class Pin extends UIElement implements Comparable<Pin>{
     abstractedChip.UpdateDimensions();
   }
   
+  @Override
   public int compareTo(Pin other){
-    return Float.compare(y,other.y);
+    return Float.compare(WorldY(), other.WorldY());
   }
   
   public float NameWidth(){
@@ -447,7 +445,11 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
         maxOutputWidth = max(maxOutputWidth,p.NameWidth());
       }
     }
-    h = 2*max(inputs[0].h*inputs.length,outputs[0].h*outputs.length);
+    if(outputs!=null){
+      h = 2*max(inputs[0].h*inputs.length,outputs[0].h*outputs.length);
+    } else {
+      h = inputs[0].h*inputs.length;
+    }
     w = textWidth(title) + 5 + maxInputWidth + maxOutputWidth;
     
     ArrangeInputs();
@@ -542,11 +544,13 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     parent = other.parent;
     for(int i = 0; i < inputs.length; i++){
       inputs[i].Connect(other.inputs[i].input);
+      inputs[i].name = other.inputs[i].name;
     }
     
     if(outputs!=null){
       for(int i = 0; i < outputs.length; i++){
         outputs[i].SetValue(other.outputs[i].Value());
+        outputs[i].name = other.outputs[i].name;
       }
     }
   }
@@ -916,6 +920,9 @@ class LCDGate extends LogicGate{
   }
   
   @Override
+  public void UpdateDimensions(){}//do nothing
+  
+  @Override
   public void Draw(){
     super.Draw();
     stroke(foregroundCol);
@@ -986,6 +993,9 @@ class Base10Gate extends LogicGate{
   }
   
   @Override
+  public void UpdateDimensions(){}//do nothing
+  
+  @Override
   public int PartID(){
     return BASE10GATE;
   }
@@ -1024,6 +1034,9 @@ class PixelGate extends LogicGate{
     lg.CopyValues(this);
     return lg;
   }
+  
+  @Override
+  public void UpdateDimensions(){}//do nothing
   
   public void Draw(){
     super.Draw();
@@ -1323,6 +1336,13 @@ String GateString(LogicGate[] gates){
   return s;
 }
 
+void printPins(Pin[] arr){
+  for(int i = 0; i < arr.length; i++){
+    println(arr[i].name);
+    println(arr[i].WorldY());
+  }
+}
+
 class LogicGateGroup extends LogicGate{
   LogicGate[] gates;
   boolean expose = true;
@@ -1398,7 +1418,6 @@ class LogicGateGroup extends LogicGate{
     eh = maxY-minY;
     
     inputs = unusedInputs.toArray(new InPin[unusedInputs.size()]);
-    Arrays.sort(inputs);
     //make the x and y positions of the gates relative to this
     //and also find all the unlinked outputs
     ArrayList<OutPin> unusedOutputs = new ArrayList<OutPin>();
@@ -1416,7 +1435,6 @@ class LogicGateGroup extends LogicGate{
     }
     
     outputs = unusedOutputs.toArray(new OutPin[unusedOutputs.size()]);
-    Arrays.sort(outputs);
     
     if((inputs.length==0)&&(outputs.length==0)){
       notifications.add("THIS GROUP HAS NO INPUTS OR OUTPUTS, AND IS COMPLETELY POINTLESS.");
@@ -1428,7 +1446,10 @@ class LogicGateGroup extends LogicGate{
     }
     
     level = maxAbstraction+1;
+    
     UpdateDimensions();
+    Arrays.sort(inputs);
+    Arrays.sort(outputs);
   }
   
   void SetName(String newName){
@@ -1506,8 +1527,10 @@ class LogicGateGroup extends LogicGate{
   
   @Override
   public LogicGate CopySelf(){
-    LogicGate lg = new LogicGateGroup(CopyPreservingConnections(gates));
+    LogicGateGroup lg = new LogicGateGroup(CopyPreservingConnections(gates));
     lg.CopyValues(this);
+    lg.SetName(title);
+    lg.expose = false;
     return lg;
   }
   
@@ -2423,6 +2446,7 @@ String[] normalActions = {
 };
 
 String[] gateActions = {
+  "[LMB]: interact",
   "[LMB]+drag: move gate(s)",
   "[RMB] hold: delete gate(s)"
 };

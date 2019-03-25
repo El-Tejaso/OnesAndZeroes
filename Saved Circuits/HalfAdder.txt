@@ -1,0 +1,2 @@
+OnesAndZeroes Savefile. Don't modify these next lines if you want things to work proper
+{4,(8,142.31693,-122.95869,|I|a,b,|O|sum,0,)(0,98.28692,-111.099464,|I|b,|O|o,0,)(0,98.57194,-125.57213,|I|a,|O|o,0,)(1,142.90324,-100.28827,|I|a,b,|O|carry,0,)|<0>[2,0][1,0]<1>[]<2>[]<3>[2,0][1,0]}
