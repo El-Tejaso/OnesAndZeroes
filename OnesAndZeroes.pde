@@ -495,6 +495,10 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     return nf(PartID(),0,0);
   }
   
+  public String GetParts(boolean embed){
+    return GetParts();
+  }
+  
   public String GetParts(){
     //looks like: (partID,x,y,|I|inputName, inputname2, |O|outputname,value,name,value)
     //will have to change for other parts
@@ -1307,14 +1311,17 @@ LogicGate LoadGroup(String data, int start, int end){
 }
 
 void SaveProject(String filePath){
-  String[] s = {CircuitString(circuit)};
+  String[] s = {  
+                  "OnesAndZeroes Savefile. Don't modify the next line if you want things to work proper", 
+                  CircuitString(circuit)
+                };
   saveStrings(filePath,s);
   UpdateGroups();
   notifications.add("Saved \""+filePath+"\" !");
 }
 
 String CircuitString(ArrayList<LogicGate> cir){
-  String s = "OnesAndZeroes Savefile. Don't modify these next lines if you want things to work proper\r\n";
+  String s = "";
   s+=GateString(cir.toArray(new LogicGate[cir.size()]));
   return s;
 }
@@ -1325,7 +1332,7 @@ String GateString(LogicGate[] gates){
   s+=gates.length+",";
   //get all of the parts, and index the gates
   for(int i = 0; i < gates.length; i++){
-    s+=gates[i].GetParts();
+    s+=gates[i].GetParts(embed);
     gates[i].arrayIndex = i;
   }
   s+="|";
@@ -2076,6 +2083,17 @@ void setup(){
                   
   menus.add(loadButton);
   
+  embedToggle = new Button("Gates WILL be embedded", -70,-20, textWidth("Gates WILL be embedded")+20, TEXTSIZE + 4, gateHoverCol, trueCol,
+                new CallbackFunction(){
+                  @Override
+                  public void f(){
+                    embed=!embed;
+                    embedToggle.title = embed ? "Gates WILL be embedded" : "Gates WON'T be embedded";
+                  }
+                });
+                
+  menus.add(embedToggle);
+  
   pinNameInput = new TextLabel("(New pin name)");
   menus.add(pinNameInput);
   
@@ -2085,6 +2103,10 @@ void setup(){
 
 Button saveButton;
 Button loadButton;
+Button embedToggle;
+//determines whether or not the file will embed the gates. 
+//embedding means that others won't need all of the acompanying gates, but makes it much harder to edit subcomponents
+boolean embed = true;
 
 StringMenu logicGateGroupAddMenu;
 
