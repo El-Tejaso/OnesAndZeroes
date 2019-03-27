@@ -40,4 +40,4 @@ Possibly the most usefull feature ever. Click on the input/output name, type in 
 Thanks! There are still heaps of bugs to remove, but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops though, the system is quite resilient to those). Good luck!
 
 #### New features in the works:
-- The option for a savefile to reference another savefile rather than embed all of the gates. Usefull for making a change to an implementation of a lower level part without having to rebuild everything else that used it
+- Detecting cycles in savefiles (i.e when a.txt needs b, b.txt needs c, and then c.txt needs a.txt)
