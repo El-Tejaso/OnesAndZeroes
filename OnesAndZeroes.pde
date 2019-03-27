@@ -1,7 +1,7 @@
 //---------A logic gate simulator---------- //<>// //<>//
 //By Tejas Hegde
 //To add:
-// Saving will reference the group name rather than a new part when a checkbox is enabled 
+// Cycle detection when loading non-embedded groups
 //-----------------------------------------
 import java.util.Arrays;
 
@@ -144,7 +144,7 @@ class Pin extends UIElement implements Comparable<Pin>{
   
   @Override
   public int compareTo(Pin other){
-    return Float.compare(WorldY(), other.WorldY());
+    return Float.compare(other.WorldY(), WorldY());
   }
   
   public float NameWidth(){
@@ -491,18 +491,15 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   public abstract LogicGate CopySelf();
   public abstract int PartID();
   
-  public String PartIDString(){
+  //the embed property is used further down the line
+  public String PartIDString(boolean embed){
     return nf(PartID(),0,0);
   }
   
   public String GetParts(boolean embed){
-    return GetParts();
-  }
-  
-  public String GetParts(){
     //looks like: (partID,x,y,|I|inputName, inputname2, |O|outputname,value,name,value)
-    //will have to change for other parts
-    String s = "("+PartIDString() + "," + str(x) + "," + str(y)+","; 
+    String part = PartIDString(embed);
+    String s = "("+ part + "," + str(x) + "," + str(y)+","; 
     s+="|I|";//have input metadata
     for(int i = 0; i < inputs.length;i++){
       //this way, the names are only saved once, where they are necessary
@@ -1193,10 +1190,18 @@ LogicGate[] RecursiveLoad(String data){
       //Find the end of this part and recursive load the {} bit and then it's metadata with LoadGroup
       end = findCorrespondingBracket(data,start,data.length(), '(', ')');
       loaded[i] = LoadGroup(data,start,end);
+    } else if(data.charAt(start+1)=='N'){
+      //load an embedded group
+      start += 2;
+      end = data.indexOf(',', start);
+      loaded[i] = LoadSavedGroup(data.substring(start,end));
     } else {
       end = data.indexOf(')',start+1);
       //Normal load it since it's just a primitive
       loaded[i] = LoadPart(data,start,end);
+    }
+    if(loaded[i]==null){
+      println("Circuit "+i+"Couldn't be loaded");
     }
   }
   
@@ -1547,8 +1552,12 @@ class LogicGateGroup extends LogicGate{
   
   //Save every gate recursively lmao
   @Override
-  public String PartIDString(){
-    return GateString(gates);
+  public String PartIDString(boolean embed){
+    if(embed){
+      return GateString(gates);
+    } else {
+      return "N"+title;
+    }
   }
 }
 
@@ -1665,7 +1674,6 @@ void SetName(){
   pinToEditName.UpdateDimensions();
   pinToEditName = null;
 }
-
 
 //will be used to input names and stuff
 class TextInput extends UIElement{
@@ -2083,15 +2091,20 @@ void setup(){
                   
   menus.add(loadButton);
   
-  embedToggle = new Button("Gates WILL be embedded", -70,-20, textWidth("Gates WILL be embedded")+20, TEXTSIZE + 4, gateHoverCol, trueCol,
+  textSize(TEXTSIZE + 4);
+  final String noEmbedText = "groups will be saved as filenames pointing to other savefiles";
+  final String embedText = "groups will be saved recursively as primitives";
+  float textW = textWidth(noEmbedText);
+  textSize(TEXTSIZE);
+  embedToggle = new Button(embed ? embedText : noEmbedText, -20 - textW/2,-80, textW+20, TEXTSIZE + 4, gateHoverCol, trueCol,
                 new CallbackFunction(){
                   @Override
                   public void f(){
                     embed=!embed;
-                    embedToggle.title = embed ? "Gates WILL be embedded" : "Gates WON'T be embedded";
+                    embedToggle.title = embed ? embedText : noEmbedText;
                   }
                 });
-                
+  
   menus.add(embedToggle);
   
   pinNameInput = new TextLabel("(New pin name)");
@@ -2261,14 +2274,19 @@ void Duplicate(){
   }
 }
 
-void AddGateGroup(int i){
-  String filename = logicGateGroupAddMenu.GetEntry(i);
+LogicGateGroup LoadSavedGroup(String filename){
   LogicGate[] gates = LoadGatesFromFile(filepath(filename));
   if(gates==null)
-    return;
+    return null;
   LogicGateGroup lg = new LogicGateGroup(gates);
   lg.expose = false;
   lg.SetName(filename);
+  return lg;
+}
+
+void AddGateGroup(int i){
+  String filename = logicGateGroupAddMenu.GetEntry(i);
+  LogicGate lg = LoadSavedGroup(filename);
   circuit.add(lg);
 }
  
@@ -2688,7 +2706,6 @@ void draw(){
   strokeWeight(1);
   //handle all key shortcuts
   if(!fileNameField.isTyping){
-    String filePath = filepath(fileNameField.Text());
     if(keyDown(ShiftKey)){
       if(keyPushed(GKey)){
         CreateNewGroup();

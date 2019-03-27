@@ -1,0 +1,2 @@
+OnesAndZeroes Savefile. Don't modify the next line if you want things to work proper
+{3,(Ntest,157.50607,-100.54508,|I|i,|O|o,1,)(0,100.0,-100.0,|I|i,|O|o,1,)(0,205.98804,-102.208084,|I|i,|O|o,1,)|<0>[1,0]<1>[]<2>[0,0]}
