@@ -1126,17 +1126,18 @@ String filepath(String filename){
   return dir+filename+".txt";
 }
 
+//load a project from a filepath. not additive
 boolean LoadProject(String filePath){
-  Cleanup();
-  ClearGateSelection();
-  ClearPinSelection();
   LogicGate[] loadedGates = LoadGatesFromFile(filePath);
   if(loadedGates!=null){
+    circuit = new ArrayList<LogicGate>();
     for(LogicGate lg : loadedGates){
       circuit.add(lg);
       selection.add(lg);
     }
     notifications.add("Loaded \""+filePath+"\" !");
+    ClearGateSelection();
+    ClearPinSelection();
     return true;
   }
   notifications.add("Unable to load \""+filePath+"\" :(");
@@ -2248,12 +2249,14 @@ void Cleanup(){
 }
 
 //creates a new group from the selected elements
+//no longer used as it's unproductive, but we might need it for something later
 void CreateNewGroup(){
   if(numSelected <= 1)
     return;
   if(selection.size()<=1)
     return;
     
+  /*
   LogicGate[] gates = selection.toArray(new LogicGate[selection.size()]);
   LogicGateGroup g = new LogicGateGroup(gates);
   circuit.add(g);
@@ -2262,6 +2265,7 @@ void CreateNewGroup(){
   }
   
   ClearGateSelection();
+  */
 }
 
 //Copies the selection
@@ -2510,7 +2514,6 @@ String[] nodeActions = {
 };
 
 String[] selectedActions = {
-  "[Shift]+[G]: combine 2+ gates into a group",
   "[Shift]+[D]: duplicate selection"
 };
 

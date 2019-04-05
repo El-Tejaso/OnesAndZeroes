@@ -36,16 +36,23 @@ As you make bigger and bigger circuits, linking pins by dragging will get quite 
 
 ### Loading, saving, and groups
 
-In order to do things faster, you can save a layout with a name of your choice (can only be letters and numbers though). It is important that you don't put the layout into a group, so that you can still edit it later (although I might implement an ungroup function at some point). You can load a savefile as it's individual parts by using the Load button with it's name entered in, you can load it from the `ADD SAVED` menu, which will load it as a group, exposing all unused inputs and outputs, and give the group the name it was saved as.
+In order to do things faster, you can save a layout with a name of your choice (can only be letters and numbers though). When saving a file, you have the option to either save groups "recursively as primitives" (which will embed every gate within the group down to the basic ones into the file, meaning that it can be shared more easier), or "as filenames pointing to other savefiles" (which will simply save the group as the filename it was loaded as, reducing filesize and allowing any changes made to those groups to carry over to the next time any circuit using it is loaded).
 
-You can also choose to manualy group objects, but this means that the only way to load another instance of that group is by selecting it and duplicating it. I dont recommend, although it might be handy every now and then. It's certainly handly when I myself am testing the grouping functionality, but it's really of no use otherwise (well not that I know of anyway).
+![Saving and loading](./Saving.png)
+
+ You can load a savefile as it's individual parts (Loads the parts as they were saved. Will delete all elements from the current circuit.) by using the Load button with it's name entered in, or you can load it as it's own part from the `ADD SAVED` menu, which will load it as a group, exposing all unused inputs and outputs, and give the group the name it was saved as.
+
+You can no longer manually group objects.
 
 ### Naming inputs and outputs
 
-Possibly the most usefull feature ever. Click on the input/output name, type in something new, and then hit enter. Extremely handy, since creating a group isn't going to make the pins appear in any particular order and it's very easy to lose track of which pin does what otherwise. (changing the order can be a future feature idea, but it won't be on my agenda anytime soon).
+Possibly the most usefull feature ever. Click on the input/output name, type in something new, and then hit enter. Extremely handy, since creating a group isn't going to make the pins appear in any particular order and it's very easy to lose track of which pin does what otherwise. Pins are ordered by their vertical location for groups.
 
-### So you actually read the instructions eh?
+![Renaming pins](./RenameIO.png)
+
+### So you actually read the manual eh?
 Thanks! There are still heaps of bugs to remove, but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops though, the system is quite resilient to those). Good luck!
 
 #### New features in the works:
 - Detecting cycles in savefiles (i.e when a.txt needs b, b.txt needs c, and then c.txt needs a.txt)
+- Embedding savefiles properly instead of recursively
