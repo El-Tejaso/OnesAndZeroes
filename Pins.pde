@@ -13,7 +13,7 @@ class Pin extends UIElement implements Comparable<Pin>{
   public void SetName(String val){
     name = val;
     nameChanged = true;
-    abstractedChip.UpdateDimensions();
+    UpdateDimensions();
   }
   
   protected boolean nameChanged = false;

@@ -80,11 +80,43 @@ CallbackFunction setNameCallback = new CallbackFunction(){
 void LinkTextField(float x, float y, float h, Pin p, int align){
   pinToEditName = p;
   pinNameInput.Show(x,y,h,align,setNameCallback);
+  boolean labelSet = false;
+  if((selectedInputs.size()>0)^(selectedOutputs.size()>0)){
+    if(selectedInputs.contains(pinToEditName) || selectedOutputs.contains(pinToEditName)){
+      pinNameInput.SetLabel("Batch Rename:");
+      labelSet = true;
+    }
+  }
+  
+  if(!labelSet){
+    pinNameInput.SetLabel("New Pin Name:");
+  }
 }
 
 void SetName(){
-  pinToEditName.SetName(pinNameInput.Text());
-  pinToEditName.UpdateDimensions();
+  //if either input or output is selected, then do a batch rename
+  boolean nameSet = false;
+  if((selectedInputs.size()>0)^(selectedOutputs.size()>0)){
+    if(selectedInputs.size()>0){
+      if(selectedInputs.contains(pinToEditName)){
+        for(int i = 0; i < selectedInputs.size(); i++){
+          selectedInputs.get(i).SetName(pinNameInput.Text()+i);
+        }
+        nameSet = true;
+      }
+    } else if(selectedOutputs.size()>0){
+      if(selectedOutputs.contains(pinToEditName)){
+        for(int i = 0; i < selectedOutputs.size(); i++){
+          selectedOutputs.get(i).SetName(pinNameInput.Text()+i);
+        }
+        nameSet = true;
+      }
+    }
+  }
+  
+  if(!nameSet){
+    pinToEditName.SetName(pinNameInput.Text());
+  }
   pinToEditName = null;
 }
 

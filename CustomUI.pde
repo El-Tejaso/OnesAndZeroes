@@ -109,6 +109,10 @@ class TextInput extends UIElement{
   
   String label;
   
+  public void SetLabel(String l){
+    label = l;
+  }
+  
   TextInput(String l){
     w=100;
     text = "";

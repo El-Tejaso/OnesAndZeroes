@@ -52,11 +52,15 @@ In order to do things faster, you can save a layout with a name of your choice (
 
 You can no longer manually group objects.
 
-### Naming inputs and outputs
+### Naming inputs and outputs, Batch renaming
 
 Possibly the most usefull feature ever. Click on the input/output name, type in something new, and then hit enter. Extremely handy, since creating a group isn't going to make the pins appear in any particular order and it's very easy to lose track of which pin does what otherwise. Pins are ordered by their vertical location for groups.
 
 ![Renaming pins](./Images/RenameIO.png)
+
+In order to make renaming faster, you can perform a `Batch Rename`. Select multiple pins, and enter a name for any one of them as normal. Pressing enter will give each pin that name, followed by a number corresponding to it's selection order:
+
+![Batch renaming pins](./Images/BatchRename.png)
 
 ### So you actually read the manual eh?
 Thanks! There are still heaps of bugs to remove, but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops though, the system is quite resilient to those). Good luck!
