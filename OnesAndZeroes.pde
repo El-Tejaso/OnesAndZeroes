@@ -59,8 +59,6 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   return newGates;
 }
 
-
-
 void printPins(Pin[] arr){
   for(int i = 0; i < arr.length; i++){
     println(arr[i].name);
@@ -130,49 +128,7 @@ void setup(){
   selection = new ArrayList<LogicGate>();
   
   //setup the input system
-  keyMappings.put('a', AKey);
-  keyMappings.put('A', AKey);
-  keyMappings.put('s', SKey);
-  keyMappings.put('S', SKey);
-  keyMappings.put('d', DKey);
-  keyMappings.put('D', DKey);
-  keyMappings.put('w', WKey);
-  keyMappings.put('W', WKey);
-  keyMappings.put('q', QKey);
-  keyMappings.put('Q', QKey);
-  keyMappings.put('e', EKey);
-  keyMappings.put('E', EKey);
-  keyMappings.put('c', CKey);
-  keyMappings.put('C', CKey);
-  keyMappings.put('p', PKey);
-  keyMappings.put('P', PKey);
-  keyMappings.put('r', RKey);
-  keyMappings.put('R', RKey);
-  keyMappings.put('b', BKey);
-  keyMappings.put('B', BKey);
-  keyMappings.put('z', ZKey);
-  keyMappings.put('Z', ZKey);
-  keyMappings.put('x', XKey);
-  keyMappings.put('X', XKey);
-  keyMappings.put('v', VKey);
-  keyMappings.put('V', VKey);
-  keyMappings.put('f', FKey);
-  keyMappings.put('F', FKey);
-  keyMappings.put('n', NKey);
-  keyMappings.put('N', NKey);
-  keyMappings.put('/', FSlashKey);
-  keyMappings.put('?', FSlashKey);
-  keyMappings.put('t', TKey);
-  keyMappings.put('T', TKey);
-  keyMappings.put(' ', SpaceKey);
-  keyMappings.put('g',GKey);
-  keyMappings.put('G',GKey);
-  keyMappings.put('l',LKey);
-  keyMappings.put('L',LKey);
-  keyMappings.put('=',PlusKey);
-  keyMappings.put('+',PlusKey);
-  keyMappings.put('-',MinusKey);
-  keyMappings.put('_',MinusKey);
+  registerInputMappings();
   
   menus = new ArrayList<UIElement>();
   UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
@@ -605,6 +561,16 @@ void DrawAvailableActions(){
 }
 
 boolean prevMouseState=false;
+
+boolean paused = false;
+
+void StepSimulation(){
+  for(int i = circuit.size()-1; i >=0 ;i--){
+    LogicGate lGate = circuit.get(i);
+    lGate.UpdateIOPins();
+  }
+}
+
 void draw(){
   if(gateUnderMouse!=null){
     cursor(MOVE);
@@ -652,7 +618,10 @@ void draw(){
   for(int i = circuit.size()-1; i >=0 ;i--){
     LogicGate lGate = circuit.get(i);
     lGate.Draw();
-    lGate.UpdateIOPins();
+  }
+  
+  if(!paused){
+    StepSimulation();
   }
   
   for(UIElement element : menus){
@@ -764,24 +733,7 @@ void draw(){
     i++;
   }
   
-  //handle all key shortcuts
-  if(!fileNameField.isTyping){
-    if(keyDown(ShiftKey)){
-      if(keyPushed(DKey)){
-        Duplicate();
-      } else if(keyPushed(CKey)){
-        ConnectSelected();
-      }
-    }
-    textAlign(RIGHT);
-    
-    if(keyPushed(PlusKey)){
-      zoom(1);
-    }
-    if(keyPushed(MinusKey)){
-      zoom(-1);
-    }
-  }
+  handleKeyShortcuts();  
   
   Cleanup();
   prevMouseState = mousePressed;
