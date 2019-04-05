@@ -1,2 +1,0 @@
-OnesAndZeroes Savefile. Don't modify these next lines if you want things to work proper
-{5,(0,100.0,-100.0,|I|i,|O|nibba,1,)(0,168.68024,-78.92353,|I|Bigyeet,|O|o,1,)(0,161.41249,-121.076485,|I|tejumunda,|O|o,1,)(0,165.77316,-47.672195,|I|hahagay,|O|o,1,)(0,197.75125,-104.36066,|I|jimmer,|O|o,1,)|<0>[1,0]<1>[0,0]<2>[0,0]<3>[0,0]<4>[1,0]}

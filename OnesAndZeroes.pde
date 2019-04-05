@@ -26,7 +26,7 @@ class UIElement{
   protected UIElement parent;
   public float x,y,w=5,h=5;
   private boolean clicked = false;
-  protected int dragThreshold = 2;
+  protected int dragThreshold = 0;
   protected boolean acceptUIInput = true;
   
   public void MoveTo(float x1, float y1){
@@ -144,7 +144,7 @@ class Pin extends UIElement implements Comparable<Pin>{
   
   @Override
   public int compareTo(Pin other){
-    return Float.compare(other.WorldY(), WorldY());
+    return Float.compare(WorldY(), other.WorldY());
   }
   
   public float NameWidth(){
@@ -440,16 +440,17 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     }
     float maxOutputWidth = 1;
     if(outputs!=null){
-      maxOutputWidth = outputs[0].NameWidth();
-      for(Pin p : outputs){
-        maxOutputWidth = max(maxOutputWidth,p.NameWidth());
+      if(outputs.length>0){
+        maxOutputWidth = outputs[0].NameWidth();
+        for(Pin p : outputs){
+          maxOutputWidth = max(maxOutputWidth,p.NameWidth());
+        }
       }
-    }
-    if(outputs!=null){
       h = 2*max(inputs[0].h*inputs.length,outputs[0].h*outputs.length);
     } else {
       h = inputs[0].h*inputs.length;
     }
+    
     w = textWidth(title) + 5 + maxInputWidth + maxOutputWidth;
     
     ArrangeInputs();
@@ -1195,6 +1196,7 @@ LogicGate[] RecursiveLoad(String data){
       start += 2;
       end = data.indexOf(',', start);
       loaded[i] = LoadSavedGroup(data.substring(start,end));
+      loadMetadata(loaded[i],data,end+1, partsIndex);
     } else {
       end = data.indexOf(')',start+1);
       //Normal load it since it's just a primitive
@@ -1378,7 +1380,8 @@ class LogicGateGroup extends LogicGate{
   LogicGateGroup(LogicGate[] gateArray){
     gates = gateArray;
     title = "Group";
-    
+    if(gateArray.length==0)
+      return;
     //find the bounding box for the group
     //also find the abstraction level
     //also find exposed input pins
@@ -1408,15 +1411,12 @@ class LogicGateGroup extends LogicGate{
       for(InPin p : lg.inputs){
         if(!p.IsConnected()){
           unusedInputs.add(p);
-          p.SetParent(this);
         } else {
           //we need to check if it is connected to an output from the outside the group, in which case it is techinically 'unused'
           LogicGate lg2 = p.input.Chip();
-          boolean found = contains(gates, lg2);
-          
-          if(!found){
+          boolean insideGroup = contains(gates, lg2);
+          if(!insideGroup){
             unusedInputs.add(p);
-            p.SetParent(this);
           } else {
             usedOutputs.add(p.input);
           }
@@ -1440,7 +1440,6 @@ class LogicGateGroup extends LogicGate{
         for(OutPin p : lg.outputs){
           if(!usedOutputs.contains(p)){
             unusedOutputs.add(p);
-            p.SetParent(this);
           }
         }
       }
@@ -1459,9 +1458,19 @@ class LogicGateGroup extends LogicGate{
     
     level = maxAbstraction+1;
     
-    UpdateDimensions();
+    //sort the io pins while their parents haven't been cleared to this
+    //that way we still have access to their true y position
+    
     Arrays.sort(inputs);
     Arrays.sort(outputs);
+    
+    for(Pin p : inputs){
+      p.SetParent(this);
+    }
+    for(Pin p : outputs){
+      p.SetParent(this);
+    }
+    UpdateDimensions();
   }
   
   void SetName(String newName){
@@ -1516,6 +1525,15 @@ class LogicGateGroup extends LogicGate{
     if(expose){
       for(LogicGate lg : gates){
         lg.Draw();
+      }
+      for(Pin p : inputs){
+        stroke(foregroundCol);
+        line(p.ActualChip().WorldX(),p.ActualChip().WorldY(),p.WorldX(),p.WorldY()); 
+      }
+      
+      for(Pin p : outputs){
+        stroke(foregroundCol);
+        line(p.ActualChip().WorldX(),p.ActualChip().WorldY(),p.WorldX(),p.WorldY()); 
       }
     }
     
@@ -1972,17 +1990,11 @@ void keyReleased(){
     keyStates[TabKey] = false;
     keyJustPressed[TabKey]=false;
   }
-  
-  dragStartPos = -1;
-  dragDelta = 0;
 }
-
-float dragStartPos = 0;
-float dragDelta = 0;
 
 void setup(){
   size(800,600);
-  
+  frame.setResizable(true);
   //textFont(createFont("Monospaced",TEXTSIZE));
   circuit = new ArrayList<LogicGate>();
   circuitGroups = new ArrayList<LogicGateGroup>();
@@ -2551,7 +2563,7 @@ void DrawAvailableActions(){
   v+=spacing;
 }
 
-
+boolean prevMouseState=false;
 void draw(){
   if(gateUnderMouse!=null){
     cursor(MOVE);
@@ -2595,20 +2607,19 @@ void draw(){
   drawCrosshair(0,0,30);
   strokeWeight(1);
   
-  
   for(int i = circuit.size()-1; i >=0 ;i--){
     LogicGate lGate = circuit.get(i);
     lGate.Draw();
     lGate.UpdateIOPins();
   }
   
-  strokeWeight(1/scale);
-  cursor.Draw();
-  strokeWeight(1);
-  
   for(UIElement element : menus){
     element.Draw();
   }
+  
+  strokeWeight(1/scale);
+  cursor.Draw();
+  strokeWeight(1);
   
   if(mousePressed){
     if(mouseButton==RIGHT){
@@ -2620,11 +2631,17 @@ void draw(){
         IncrementDeleteTimer(gateUnderMouse.x, gateUnderMouse.y,40,gateUnderMouse.h, gateUnderMouse);
       }
     } else {
-      if(!((draggedElement!=null)||(mouseOver))){
-        cursor.Place(MouseXPos(),MouseYPos());
-        if(!keyDown(ShiftKey)){
-          ClearGateSelection();
-          ClearPinSelection();
+      boolean mouseJustPressed = false;
+      if(prevMouseState != mousePressed){
+        mouseJustPressed = true;
+      }
+      if(mouseJustPressed){
+        if(!((draggedElement!=null)||(mouseOver))){
+          cursor.Place(MouseXPos(),MouseYPos());
+          if(!keyDown(ShiftKey)){
+            ClearGateSelection();
+            ClearPinSelection();
+          }
         }
       }
       
@@ -2726,6 +2743,7 @@ void draw(){
   }
   
   Cleanup();
+  prevMouseState = mousePressed;
 }
 
 ArrayList<String> notifications = new ArrayList<String>();
