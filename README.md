@@ -16,13 +16,17 @@ Sidenote: OnesAndZeroes only uses `true` and `false` to represent gate states, o
 There are probably more controls out there, the bottom left of the screen will show you what actions you can do at any given moment
 
 ## How it works
-I'd assume that your goal is to build some sort of computer using primitive logic gates only.
+I'd assume that your goal is to build some sort of computer using primitive logic gates and a pulser only.
 
 ![Example Image](./Images/Screenshot1.png)
 
 The primitive gates are And, Or, Not, Xor, and Nand. The output gates exist to use the signals to produce some sort of output, like a coloured pixel, or a number. They also exist for debugging purposes. There is also a clock gate that pulses at a speed defined by it's input, and relay gates that simply feed the signal forward.
 
 ![Main Gates](./Images/MainGates.png)
+
+The button gate also exists. It's output is `true` whenever it is clicked. The text displayed is the same as the name of the output pin. I plan to map keyboard keys to buttons at some point.
+
+![Button Gate](./Images/Button.png)
 
 ### Selecting multiple gates
 Dragging the mouse over the background will enable you to do a rectangular selection of gates. Selected gates can be dragged or deleted all at once. Holding down `Shift` while selecting things will ensure that the previous selection doesn't get cleared, allowing for additive selection. 
@@ -58,5 +62,7 @@ Possibly the most usefull feature ever. Click on the input/output name, type in 
 Thanks! There are still heaps of bugs to remove, but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops though, the system is quite resilient to those). Good luck!
 
 #### New features in the works:
-- Detecting cycles in savefiles (i.e when a.txt needs b, b.txt needs c, and then c.txt needs a.txt)
-- Embedding savefiles properly instead of recursively
+- Detecting cycles in non-embedded savefiles
+- Embedding savefiles properly with names pointing to embedded gates rather than just recursively saving the group wherever it appears
+- keyboard activated buttons
+- better wire wrangling and selecting

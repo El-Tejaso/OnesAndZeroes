@@ -622,8 +622,10 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     noFill();
     super.Draw();
     
-    for(int i = 0; i < inputs.length; i++){
-      inputs[i].DrawLink();
+    if(inputs!=null){
+      for(int i = 0; i < inputs.length; i++){
+        inputs[i].DrawLink();
+      }
     }
     
     if(showText){
@@ -1013,6 +1015,7 @@ class Base10Gate extends LogicGate{
   }
 }
 
+
 class PixelGate extends LogicGate{
   public PixelGate(float wid, float hei){
     super();
@@ -1085,6 +1088,53 @@ class PixelGate extends LogicGate{
   @Override
   public int PartID(){
     return PIXELGATE;
+  }
+}
+
+class ButtonGate extends LogicGate{
+  public ButtonGate(float wid, float hei){
+    super();
+    w=wid; h = hei;
+    title = "";
+    showText = false;
+    outputs = new OutPin[1];
+    outputs[0]= new OutPin(this);
+    outputs[0].SetName("outpin name");
+    ArrangeOutputs();
+  }
+  
+  @Override
+  public LogicGate CopySelf(){
+    LogicGate lg = new ButtonGate(w,h);
+    lg.CopyValues(this);
+    return lg;
+  }
+  
+  @Override
+  public void UpdateDimensions(){}//do nothing
+  
+  public void Draw(){
+    fill(foregroundCol);
+    textSize(h*5 / 6f);
+    textAlign(CENTER);
+    text(outputs[0].name,WorldX(),WorldY()+h/4);
+    textSize(TEXTSIZE);
+    super.Draw();
+  }
+  
+  @Override
+  public void OnMousePress(){
+    outputs[0].SetValue(true);
+  }
+  
+  @Override
+  public void OnMouseRelease(){
+    outputs[0].SetValue(false);
+  }
+  
+  @Override
+  public int PartID(){
+    return BUTTONINGATE;
   }
 }
 
@@ -1613,7 +1663,7 @@ class StringMenu extends UIElement{
     if(arr.length==0)
       return;
     //setup the dimensions
-    int max = arr[0].length();
+    int max = heading.length();
     for(String s : arr){
       if(s.length() > max){
         max = s.toString().length();
@@ -2068,6 +2118,14 @@ void setup(){
   logicGateAddMenu.MoveTo(4,0);
   
   menus.add(logicGateAddMenu);
+  UIElement inputGateAddMenu = new StringMenu(inputNames, "ADD INPUT GATE", new CallbackFunctionInt(){
+    @Override
+    public void f(int i){
+      AddGate(CreateGate(inputGates[i]));
+    }
+  });
+  menus.add(inputGateAddMenu);
+  inputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
   
   UIElement outputGateAddMenu = new StringMenu(outputNames, "ADD OUTPUT GATE", new CallbackFunctionInt(){
     @Override
@@ -2075,7 +2133,7 @@ void setup(){
       AddGate(CreateGate(outputGates[i]));
     }
   });
-  outputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
+  outputGateAddMenu.MoveTo(inputGateAddMenu.x+inputGateAddMenu.w/2f+10,0);
   menus.add(outputGateAddMenu);
   
   logicGateGroupAddMenu = new StringMenu(new String[]{}, "ADD SAVED", new CallbackFunctionInt(){
@@ -2326,8 +2384,11 @@ final int LCDGATE = 6;
 final int PIXELGATE = 7;
 final int XORGATE = 8;
 final int BASE10GATE = 10;//there used to be 8 and 9
+final int BUTTONINGATE = 11;
 
 //used for the menus
+String inputNames[] = {"Button"};
+int inputGates[] = {   BUTTONINGATE};
 String outputNames[] = {"LCD Pixel", "24-bit Pixel","Int32 readout"};
 int outputGates[] = {    LCDGATE,     PIXELGATE,     BASE10GATE};
 String gateNames[] = {"input / relay point", "And(&)",   "Or(|)",   "Xor(^)",   "Not(!)",   "Nand(!&)",   "Clock"};
@@ -2374,6 +2435,10 @@ LogicGate CreateGate(int g){
     }
     case (BASE10GATE):{
       lg = new Base10Gate(30);
+      break;
+    }
+    case (BUTTONINGATE):{
+      lg = new ButtonGate(80,80);
       break;
     }
     default:{
