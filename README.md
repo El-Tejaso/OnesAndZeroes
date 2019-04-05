@@ -22,7 +22,7 @@ I'd assume that your goal is to build some sort of computer using primitive logi
 
 The primitive gates are And, Or, Not, Xor, and Nand. The output gates exist to use the signals to produce some sort of output, like a coloured pixel, or a number. They also exist for debugging purposes. There is also a clock gate that pulses at a speed defined by it's input, and relay gates that simply feed the signal forward.
 
-![Main Gates](./Images/MainGates.png)
+![Main Gates](./Images/MainGates.PNG)
 
 The button gate also exists. It's output is `true` whenever it is clicked. The text displayed is the same as the name of the output pin. I plan to map keyboard keys to buttons at some point.
 
@@ -46,7 +46,7 @@ As you make bigger and bigger circuits, linking pins by dragging will get quite 
 
 In order to do things faster, you can save a layout with a name of your choice (can only be letters and numbers though). When saving a file, you have the option to either save groups "recursively as primitives" (which will embed every gate within the group down to the basic ones into the file, meaning that it can be shared more easier), or "as filenames pointing to other savefiles" (which will simply save the group as the filename it was loaded as, reducing filesize and allowing any changes made to those groups to carry over to the next time any circuit using it is loaded).
 
-![Saving and loading](./Images/Saving.png)
+![Saving and loading](./Images/Saving.PNG)
 
  You can load a savefile as it's individual parts (Loads the parts as they were saved. Will delete all elements from the current circuit.) by using the Load button with it's name entered in, or you can load it as it's own part from the `ADD SAVED` menu, which will load it as a group, exposing all unused inputs and outputs, and give the group the name it was saved as.
 
