@@ -18,27 +18,31 @@ There are probably more controls out there, the bottom left of the screen will s
 ## How it works
 I'd assume that your goal is to build some sort of computer using primitive logic gates only.
 
-![Example Image](./Screenshot1.png)
+![Example Image](./Images/Screenshot1.png)
 
 The primitive gates are And, Or, Not, Xor, and Nand. The output gates exist to use the signals to produce some sort of output, like a coloured pixel, or a number. They also exist for debugging purposes. There is also a clock gate that pulses at a speed defined by it's input, and relay gates that simply feed the signal forward.
 
-![Main Gates](./MainGates.png)
+![Main Gates](./Images/MainGates.png)
 
 ### Selecting multiple gates
 Dragging the mouse over the background will enable you to do a rectangular selection of gates. Selected gates can be dragged or deleted all at once. Holding down `Shift` while selecting things will ensure that the previous selection doesn't get cleared, allowing for additive selection. 
 
 The selection can be duplicated with `Shift+D`, which is probably the best way to create more of the same element.
 
-### Linking multiple I/O pins at once
+### Linking I/O pins
+The initial way to do this is by dragging from one pin to another:
+
+![IO Connection](./Images/IOConnect.png)
+
 As you make bigger and bigger circuits, linking pins by dragging will get quite frustrating. You can select several IO pins in the same way that you select gates, and then press `Shift+C` to link the selected inputs to the selected outputs. If there are fewer selected outputs than inputs, the outputs will be looped through again and linked to the remaining inputs. The linking occurs in the order the pins were selected, i.e the first selected output pin will link to the first selected input pin, and so on. 
 
-![Shift C in use](./ShiftC.png)
+![Shift C in use](./Images/ShiftC.png)
 
 ### Loading, saving, and groups
 
 In order to do things faster, you can save a layout with a name of your choice (can only be letters and numbers though). When saving a file, you have the option to either save groups "recursively as primitives" (which will embed every gate within the group down to the basic ones into the file, meaning that it can be shared more easier), or "as filenames pointing to other savefiles" (which will simply save the group as the filename it was loaded as, reducing filesize and allowing any changes made to those groups to carry over to the next time any circuit using it is loaded).
 
-![Saving and loading](./Saving.png)
+![Saving and loading](./Images/Saving.png)
 
  You can load a savefile as it's individual parts (Loads the parts as they were saved. Will delete all elements from the current circuit.) by using the Load button with it's name entered in, or you can load it as it's own part from the `ADD SAVED` menu, which will load it as a group, exposing all unused inputs and outputs, and give the group the name it was saved as.
 
@@ -48,7 +52,7 @@ You can no longer manually group objects.
 
 Possibly the most usefull feature ever. Click on the input/output name, type in something new, and then hit enter. Extremely handy, since creating a group isn't going to make the pins appear in any particular order and it's very easy to lose track of which pin does what otherwise. Pins are ordered by their vertical location for groups.
 
-![Renaming pins](./RenameIO.png)
+![Renaming pins](./Images/RenameIO.png)
 
 ### So you actually read the manual eh?
 Thanks! There are still heaps of bugs to remove, but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops though, the system is quite resilient to those). Good luck!
