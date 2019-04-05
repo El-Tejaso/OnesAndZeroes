@@ -12,12 +12,19 @@ class Pin extends UIElement implements Comparable<Pin>{
   
   public void SetName(String val){
     name = val;
-    nameChanged = true;
+   // nameChanged = true;
     UpdateDimensions();
   }
   
-  protected boolean nameChanged = false;
-  public boolean NameChanged(){return nameChanged;}
+  Pin(LogicGate parentChip){
+    chip = parentChip;
+    parent = parentChip;
+    abstractedChip = parentChip;
+    dragThreshold = -1;
+  }
+  
+ // protected boolean nameChanged = false;
+  //public boolean NameChanged(){return nameChanged;}
   
   public void UpdateDimensions(){
     abstractedChip.UpdateDimensions();
@@ -52,13 +59,6 @@ class Pin extends UIElement implements Comparable<Pin>{
   
   public boolean IsDeleted(){
     return chip.deleted;
-  }
-  
-  Pin(LogicGate parentChip){
-    chip = parentChip;
-    parent = parentChip;
-    abstractedChip = parentChip;
-    dragThreshold = -1;
   }
   
   @Override
@@ -110,23 +110,15 @@ class Pin extends UIElement implements Comparable<Pin>{
     }
   }
   
-  public void UpdatePin(){
-    if(Value()!=lastValue){
-      OnValueChange();
-    }
-    lastValue = Value();
-  }
-  
   boolean lastValue = false;
   public boolean Value(){return false;}
   public boolean IsConnected(){return true;}
-  
-  public void OnValueChange(){}
 }
 
 //An input pin on a logic gate. Every input can link to at most 1 output pin
 class InPin extends Pin{
   private OutPin input;
+  boolean prevValue = false;
   
   public InPin(LogicGate p){
     super(p);
@@ -135,7 +127,6 @@ class InPin extends Pin{
   
   public void Connect(OutPin in){
     input = in;
-    OnValueChange();
   }
 
   @Override
@@ -171,17 +162,6 @@ class InPin extends Pin{
   public boolean IsConnected(){
     return (input!=null);
   }
-  
-  @Override
-  void UpdatePin(){
-    super.UpdatePin();
-    if(IsConnected()){
-      if(input.IsDeleted()){
-        //We need to remove all references to the deleted chip in order for the garbage collecter to collect it
-        Connect(null);
-      }
-    }
-  }
 
   @Override
   public boolean Value(){
@@ -213,11 +193,6 @@ class InPin extends Pin{
       MakeConnection(lastSelectedOutput, this);
     }
   }
-  
-  @Override
-  public void OnValueChange(){
-    chip.UpdateLogic();
-  }
 }
 
 //This is a pin that outputs a value to an input pin.
@@ -231,7 +206,7 @@ class OutPin extends Pin{
     if(IsDeleted())
       return;
       
-    value = v;
+    nextValue = v;
   }
   
   @Override
@@ -275,5 +250,10 @@ class OutPin extends Pin{
     }
   }
   
+  public void PropagateSignal(){
+    value = nextValue;
+  }
+  
+  boolean nextValue = false;
   boolean value = false;
 }

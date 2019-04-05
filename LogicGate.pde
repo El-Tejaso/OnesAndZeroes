@@ -234,20 +234,14 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
       text(title,WorldX(),WorldY()+TEXTSIZE/4.0);
     }
   }
-  
-  //will involve setting outputs in overrides, which should cause a cascading change
+    
+  //will update the logic. complex gates can optimize based on pinsChanged
   protected void UpdateLogic(){}
   
-  public void UpdateIOPins(){
-    if(inputs!=null){
-      for(InPin in : inputs){
-        in.UpdatePin();
-      }
-    }
-    
+  public void PropagateSignal(){
     if(outputs!=null){
-      for(OutPin out : outputs){
-        out.UpdatePin();
+      for(OutPin p : outputs){
+        p.PropagateSignal();
       }
     }
   }

@@ -131,6 +131,8 @@ void setup(){
   registerInputMappings();
   
   menus = new ArrayList<UIElement>();
+  screenspaceMenus = new ArrayList<UIElement>(); 
+  
   UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
     @Override
     public void f(int i){
@@ -231,6 +233,7 @@ Button embedToggle;
 boolean embed = true;
 StringMenu logicGateGroupAddMenu;
 ArrayList<UIElement> menus;
+ArrayList<UIElement> screenspaceMenus;
 
 //moving the screen around
 float xPos=0;
@@ -561,13 +564,17 @@ void DrawAvailableActions(){
 }
 
 boolean prevMouseState=false;
-
+int simSpeed = 1;
 boolean paused = false;
 
 void StepSimulation(){
-  for(int i = circuit.size()-1; i >=0 ;i--){
-    LogicGate lGate = circuit.get(i);
-    lGate.UpdateIOPins();
+  for(int i = 0; i < simSpeed; i++){
+    for(LogicGate lg : circuit){    
+      lg.UpdateLogic();
+    }
+    for(LogicGate lg : circuit){    
+      lg.PropagateSignal();
+    }
   }
 }
 
@@ -595,6 +602,17 @@ void draw(){
     text("Selected IO: "+selectedInputs.size()+" input nodes, "+selectedOutputs.size()+" output nodes",0,20);
   }
   
+  textAlign(RIGHT);
+  if(paused){
+    fill(falseColOpaque);
+    text("[Space] to resume", width, 10);
+    text("[>] to step", width, 20);
+  } else {
+    fill(trueColOpaque);
+    text("[Space] to pause", width, 10);
+    text("speed: " + simSpeed + "([<,] [>.] to change)", width, 20);
+  }
+  
   DrawAvailableActions();
   fill(255,0,0);
   textAlign(RIGHT);
@@ -606,6 +624,10 @@ void draw(){
   mouseOver = false;
   gateUnderMouse = null;
   lastSelectedPin = null;
+  
+  for(UIElement e : screenspaceMenus){
+    e.Draw();
+  }
   
   //World space
   translate(width/2,height/2);
@@ -778,9 +800,11 @@ void drawArrow(float x, float y, float size, int dir, boolean vertical){
   if(vertical){
     line(x,y,x-dir*size,y+dir*size);
     line(x,y,x+dir*size,y+dir*size);
+    line(x-dir*size,y+dir*size,x+dir*size,y+dir*size); 
   } else {
     line(x,y,x+dir*size,y+dir*size);
     line(x,y,x+dir*size,y-dir*size);
+    line(x+dir*size,y+dir*size,x+dir*size,y-dir*size);
   }
 }
 

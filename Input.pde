@@ -208,13 +208,19 @@ void handleKeyShortcuts(){
       }
     }
     
-    if(keyPushed(PKey)){
+    if(keyPushed(SpaceKey)){
       paused = !paused;
     }
     
     if(paused){
       if(keyPushed(DotKey)){
         StepSimulation();
+      }
+    } else {
+      if(keyPushed(CommaKey)){
+        simSpeed=max(simSpeed-1,1);
+      } else if(keyPushed(DotKey)){
+        simSpeed=min(simSpeed+1,1000);
       }
     }
     

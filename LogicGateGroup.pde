@@ -169,6 +169,7 @@ class LogicGateGroup extends LogicGate{
       for(LogicGate lg : gates){
         lg.Draw();
       }
+      
       for(Pin p : inputs){
         stroke(foregroundCol);
         line(p.ActualChip().WorldX(),p.ActualChip().WorldY(),p.WorldX(),p.WorldY()); 
@@ -184,17 +185,24 @@ class LogicGateGroup extends LogicGate{
   }
   
   @Override
-  public void Decouple(){
-    super.Decouple();
+  public void UpdateLogic(){
     for(LogicGate lg : gates){
-      lg.Decouple();
+      lg.UpdateLogic();
     }
   }
   
   @Override
-  public void UpdateIOPins(){
+  public void PropagateSignal(){
     for(LogicGate lg : gates){
-      lg.UpdateIOPins();
+      lg.PropagateSignal();
+    }
+  }
+  
+  @Override
+  public void Decouple(){
+    super.Decouple();
+    for(LogicGate lg : gates){
+      lg.Decouple();
     }
   }
   

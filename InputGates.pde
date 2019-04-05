@@ -1,4 +1,3 @@
-
 class ButtonGate extends LogicGate{
   public ButtonGate(float wid, float hei){
     super();

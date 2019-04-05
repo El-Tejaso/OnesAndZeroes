@@ -55,17 +55,6 @@ class Ticker extends LogicGate{
   
   int phase = 0;
   int ticks = 0;
-  @Override
-  public void UpdateIOPins(){
-    super.UpdateIOPins();
-    if(ticks>0){
-      phase ++;
-      if(phase > ticks){
-        outputs[0].SetValue(!outputs[0].Value());
-        phase = 0;
-      }
-    }
-  }
   
   @Override
   public void Draw(){
@@ -86,8 +75,15 @@ class Ticker extends LogicGate{
     ticks = 0;
     for(int i = 0; i < inputs.length; i++){
       if(inputs[i].Value()){
-        //we dont want negative numbers from bit shifting
-        ticks += pow(2,i);
+        ticks = ticks | (1<<i);
+      }
+    }
+    
+    if(ticks>0){
+      phase ++;
+      if(phase > ticks){
+        outputs[0].SetValue(!outputs[0].Value());
+        phase = 0;
       }
     }
   }

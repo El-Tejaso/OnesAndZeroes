@@ -86,6 +86,7 @@ class StringMenu extends UIElement{
   @Override
   public void Draw(){
     noFill();
+    stroke(foregroundCol);
     super.Draw();
     fill(menuHeadingCol);
     text(heading,WorldX(),WorldY()-h/2+elementHeight);
