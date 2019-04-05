@@ -6,9 +6,9 @@ Sidenote: OnesAndZeroes only uses `true` and `false` to represent gate states, o
 
 ### Main Controls:
 
-- Rightclick and drag to move pan the view, use the mousewheel to zoom in and out.
+- Rightclick and drag to move/pan the view, use the mousewheel to zoom in and out.
 - Drag a gate to move it. 
-- Drag a rectangle to do a rectangle selection (hold shift while doing this to make it additive). 
+- Drag a rectangle to do a rectangle selection (hold `Shift` while doing this to make it additive). 
 - Hold right-click on a gate/selection to delete it
 - Press `[Shift] D` to duplicate a selection (totally didnt steal that from blender or anything haha)
 - Press `[Shift] C` to connect the selected inputs and outputs *in the order that they were selected*. Very useful
@@ -38,7 +38,7 @@ The initial way to do this is by dragging from one pin to another:
 
 ![IO Connection](./Images/IOConnect.png)
 
-As you make bigger and bigger circuits, linking pins by dragging will get quite frustrating. You can select several IO pins in the same way that you select gates, and then press `Shift+C` to link the selected inputs to the selected outputs. If there are fewer selected outputs than inputs, the outputs will be looped through again and linked to the remaining inputs. The linking occurs in the order the pins were selected, i.e the first selected output pin will link to the first selected input pin, and so on. 
+As you make bigger and bigger circuits, linking pins by dragging from one to the other one by one will get quite frustrating. Instead, you can select several IO pins in the same way that you select gates, and then press `Shift+C` to link the selected inputs to the selected outputs. If there are fewer selected outputs than inputs, the outputs will be looped through again and linked to the remaining inputs. The linking occurs in the order the pins were selected, i.e the first selected output pin will link to the first selected input pin, and so on. 
 
 ![Shift C in use](./Images/ShiftC.png)
 
