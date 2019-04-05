@@ -16,6 +16,8 @@ color falseColOpaque = color(255,0,0);
 color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
 color warningCol = color(255,0,0);
+color selOutputCol = color(255,0,255);
+color selInputCol = color(0,255,255);
 
 //Putting these here cause you cant make static vars in processing
 //This is to prevent multiple things being dragged at once
@@ -445,8 +447,8 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
         for(Pin p : outputs){
           maxOutputWidth = max(maxOutputWidth,p.NameWidth());
         }
+        h = 2*max(inputs[0].h*inputs.length,outputs[0].h*outputs.length);
       }
-      h = 2*max(inputs[0].h*inputs.length,outputs[0].h*outputs.length);
     } else {
       h = inputs[0].h*inputs.length;
     }
@@ -2704,23 +2706,23 @@ void draw(){
     drawCrosshair(lGate.WorldX(),lGate.WorldY(),max(10.0/scale,lGate.w));
   }
   
-  strokeWeight(2);
-  stroke(0,255,255);
+  stroke(selInputCol);
+  fill(selInputCol);
   int i = 0;
   for(InPin p : selectedInputs){
-    drawArrow(p.WorldX(), p.WorldY(),10,-1,false);
-    text(i,p.WorldX(), p.WorldY());
+    drawCrosshair(p.WorldX(), p.WorldY(),5);
+    text(i,p.WorldX()-5, p.WorldY());
     i++;
   }
-  stroke(255,255,0);
+  stroke(selOutputCol);
+  fill(selOutputCol);
   i = 0;
   for(OutPin p : selectedOutputs){
-    drawArrow(p.WorldX(), p.WorldY(),10,-1,false);
-    text(i,p.WorldX(), p.WorldY());
+    drawCrosshair(p.WorldX(), p.WorldY(),5);
+    text(i,p.WorldX()+5, p.WorldY());
     i++;
   }
   
-  strokeWeight(1);
   //handle all key shortcuts
   if(!fileNameField.isTyping){
     if(keyDown(ShiftKey)){

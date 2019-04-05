@@ -1,10 +1,12 @@
-# OnesAndZeroes Logic Gate Simulator
+# What is OnesAndZeroes?
 
-A logic gate simulator made in processing to help myself understand a second year computer systems university course. Download Processing from their website, then download this entire repository and open OnesAndZeroes.pde in processing and run it in order to use the program
+It's a logic gate simulator made in processing to help myself understand a second year computer systems university course. Download Processing from the Processing website, then download this entire repository and open OnesAndZeroes.pde in processing and run it in order to use the program.
 
-### Controls:
+Sidenote: OnesAndZeroes only uses `true` and `false` to represent gate states, ones and zeroes play no part in this program
 
-- Rightclick and drag to move the view around, use the mousewheel to zoom in and out.
+### Main Controls:
+
+- Rightclick and drag to move pan the view, use the mousewheel to zoom in and out.
 - Drag a gate to move it. 
 - Drag a rectangle to do a rectangle selection (hold shift while doing this to make it additive). 
 - Hold right-click on a gate/selection to delete it
@@ -14,9 +16,13 @@ A logic gate simulator made in processing to help myself understand a second yea
 There are probably more controls out there, the bottom left of the screen will show you what actions you can do at any given moment
 
 ## How it works
-I'd assume that your goal is to build some sort of computer using primitive logic gates only. The primitive gates are And, Or, Not, Xor, and Nand. There is also a clock gate that pulses at a speed defined by it's input, and relay gates that simply feed the signal forward.
+I'd assume that your goal is to build some sort of computer using primitive logic gates only.
 
-The output gates exist to use the signals to produce some sort of output, like a coloured pixel, or a number. They also exist for debugging purposes.
+![Example Image](./Screenshot1.png)
+
+The primitive gates are And, Or, Not, Xor, and Nand. The output gates exist to use the signals to produce some sort of output, like a coloured pixel, or a number. They also exist for debugging purposes. There is also a clock gate that pulses at a speed defined by it's input, and relay gates that simply feed the signal forward.
+
+![Main Gates](./MainGates.png)
 
 ### Selecting multiple gates
 Dragging the mouse over the background will enable you to do a rectangular selection of gates. Selected gates can be dragged or deleted all at once. Holding down `Shift` while selecting things will ensure that the previous selection doesn't get cleared, allowing for additive selection. 
@@ -25,6 +31,8 @@ The selection can be duplicated with `Shift+D`, which is probably the best way t
 
 ### Linking multiple I/O pins at once
 As you make bigger and bigger circuits, linking pins by dragging will get quite frustrating. You can select several IO pins in the same way that you select gates, and then press `Shift+C` to link the selected inputs to the selected outputs. If there are fewer selected outputs than inputs, the outputs will be looped through again and linked to the remaining inputs. The linking occurs in the order the pins were selected, i.e the first selected output pin will link to the first selected input pin, and so on. 
+
+![Shift C in use](./ShiftC.png)
 
 ### Loading, saving, and groups
 
