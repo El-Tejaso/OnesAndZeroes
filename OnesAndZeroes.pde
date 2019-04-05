@@ -273,10 +273,18 @@ class InPin extends Pin{
   public void DrawLink(){
     if(IsConnected()){
       stroke(input.Value() ? trueColOpaque : falseColOpaque);
-      float hMid = (WorldX() + 2*input.WorldX())/3;
-      line(WorldX()+w/2,WorldY(),hMid,WorldY());
-      line(hMid, WorldY(), hMid, input.WorldY());
-      line(hMid, input.WorldY(),input.WorldX()-input.w/2, input.WorldY());
+      float dir = (WorldX() - input.WorldX()) > 0 ? 1 : -1;
+      int dirY = (WorldY() - input.WorldY()) > 0 ? 1 : -1;
+      float offsetIn; 
+      if(dirY == 1){
+        offsetIn = (dir * (y+parent.h/2))/2;
+      } else {
+        offsetIn = (dir * (-y+parent.h/2))/2;
+      }
+      //float offsetOut = dir * (input.y+input.parent.h/2);
+      line(WorldX()+w/2,WorldY(),WorldX()-offsetIn,WorldY());
+      line(WorldX()-offsetIn, WorldY(), WorldX()-offsetIn, input.WorldY());
+      line(WorldX()-offsetIn, input.WorldY(),input.WorldX()-input.w/2, input.WorldY());
     }
   }
   
@@ -1997,7 +2005,7 @@ void keyReleased(){
 
 void setup(){
   size(800,600);
-  frame.setResizable(true);
+  surface.setResizable(true);
   //textFont(createFont("Monospaced",TEXTSIZE));
   circuit = new ArrayList<LogicGate>();
   circuitGroups = new ArrayList<LogicGateGroup>();
