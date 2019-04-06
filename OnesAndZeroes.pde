@@ -40,8 +40,8 @@ LogicGate[] CopyPreservingConnections(LogicGate[] gates){
   //make the connections copied -> copied instead of original -> copied
   for(int i = 0; i < gates.length; i++){
     for(int j = 0; j < gates[i].inputs.length; j++){
-      InPin input = gates[i].inputs[j];
       //get the output gate from our gates 
+      InPin input = gates[i].inputs[j];    
       if(!input.IsConnected())
         continue;
       
@@ -338,6 +338,15 @@ void Duplicate(){
     circuit.add(lg);      
   }
 }
+
+void SelectAll(){
+  selection.clear();
+  for(LogicGate lg : circuit){
+    selection.add(lg);
+    numSelected += lg.NumGates();
+    abstraction = max(abstraction, lg.Abstraction());
+  }
+}
  
 final int INPUTGATE = 0;
 final int ANDGATE = 1;
@@ -596,7 +605,7 @@ void draw(){
   textAlign(LEFT);
   if(numSelected > 0){
     text("Selected gates: "+numSelected+" primitive, "+selection.size()+" groups",0,10);
-    text("Abstraction: "+abstraction+" levels deep",0,30);
+    text("Abstraction: "+abstraction+" groups deep",0,30);
   }
   if((selectedInputs.size()+selectedOutputs.size())>0){
     text("Selected IO: "+selectedInputs.size()+" input nodes, "+selectedOutputs.size()+" output nodes",0,20);

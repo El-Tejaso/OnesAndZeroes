@@ -160,7 +160,14 @@ class InPin extends Pin{
   
   @Override
   public boolean IsConnected(){
-    return (input!=null);
+    if(input!=null){
+      if(input.Chip().deleted){
+        Connect(null);
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   @Override
@@ -207,6 +214,11 @@ class OutPin extends Pin{
       return;
       
     nextValue = v;
+  }
+  
+  public void SetState(boolean s){
+    value = s;
+    nextValue = s;
   }
   
   @Override

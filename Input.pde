@@ -205,6 +205,8 @@ void handleKeyShortcuts(){
         Duplicate();
       } else if(keyPushed(CKey)){
         ConnectSelected();
+      } else if (keyPushed(AKey)){
+        SelectAll();
       }
     }
     

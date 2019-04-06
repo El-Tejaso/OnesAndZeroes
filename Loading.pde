@@ -151,7 +151,7 @@ void assignPins(LogicGate lg, String pins){
     }
     //whether we assigned a name or not, there should be a 1 or 0 every odd comma
     start = end+1;
-    lg.outputs[i].SetValue(pins.charAt(start)=='1');
+    lg.outputs[i].SetState(pins.charAt(start)=='1');
     start = pins.indexOf(',',start)+1;
   }
 }
