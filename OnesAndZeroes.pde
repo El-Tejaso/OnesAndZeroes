@@ -1,4 +1,4 @@
-//---------A logic gate simulator---------- //<>//
+//---------A logic gate simulator---------- //<>// //<>// //<>//
 //By Tejas Hegde
 //To add:
 // Cycle detection when loading non-embedded groups
@@ -18,7 +18,7 @@ color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
 color warningCol = color(255,0,0);
 color selOutputCol = color(255,0,255);
-color selInputCol = color(0,255,255); //<>// //<>//
+color selInputCol = color(0,255,255); //<>// //<>// //<>// //<>//
 
 boolean contains(LogicGate[] arr, LogicGate lg){
   for(LogicGate l : arr){

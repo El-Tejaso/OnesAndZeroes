@@ -1,3 +1,23 @@
+//all methods related to saving gates
+/*
+HashMap<String, LogicGateGroup> BuildLookupTable(){
+  HashMap<String, LogicGateGroup> lt = new HashMap<String, LogicGateGroup>();
+  
+  
+  return lt;
+}
+
+
+void RecursiveBuild(HashMap<String, LogicGateGroup> lt, LogicGate[] array){
+  for(LogicGate lg : array){
+    //add it to the lt if it's a group
+    if(lg.PartIDString(false).charAt(0)=='N'){
+    if(lt.containsKey(lg.P
+    }
+  }
+}
+*/
+//write the gate to a text file
 void SaveProject(String filePath){
   String[] s = {  
                   "OnesAndZeroes Savefile. Don't modify the next line if you want things to work proper", 

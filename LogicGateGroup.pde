@@ -216,6 +216,7 @@ class LogicGateGroup extends LogicGate{
   public String PartIDString(boolean embed){
     if(embed){
       return GateString(gates);
+      //return "E"+title;
     } else {
       return "N"+title;
     }
