@@ -1,8 +1,9 @@
-//---------A logic gate simulator---------- //<>// //<>// //<>//
+//---------A logic gate simulator---------- //<>// //<>//
 //By Tejas Hegde
 //To add:
 // Cycle detection when loading non-embedded groups
 //-----------------------------------------
+import java.util.Collections;
 import java.util.Arrays;
 
 final int TEXTSIZE = 12;
@@ -18,7 +19,7 @@ color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
 color warningCol = color(255,0,0);
 color selOutputCol = color(255,0,255);
-color selInputCol = color(0,255,255); //<>// //<>// //<>// //<>//
+color selInputCol = color(0,255,255); //<>// //<>// //<>//
 
 boolean contains(LogicGate[] arr, LogicGate lg){
   for(LogicGate l : arr){
@@ -225,12 +226,6 @@ void setup(){
   AddGate(CreateGate(INPUTGATE));
 }
 
-Button saveButton;
-Button loadButton;
-Button embedToggle;
-//determines whether or not the file will embed the gates. 
-//embedding means that others won't need all of the acompanying gates, but makes it much harder to edit subcomponents
-boolean embed = true;
 StringMenu logicGateGroupAddMenu;
 ArrayList<UIElement> menus;
 ArrayList<UIElement> screenspaceMenus;

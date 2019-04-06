@@ -99,6 +99,10 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   public String PartIDString(boolean embed){
     return nf(PartID(),0,0);
   }
+  //this is used further down the line as well
+  public LogicGate[] GetGates(){
+    return null;
+  }
   
   public String GetParts(boolean embed){
     //looks like: (partID,x,y,|I|inputName, inputname2, |O|outputname,value,name,value)

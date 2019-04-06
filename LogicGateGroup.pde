@@ -221,4 +221,9 @@ class LogicGateGroup extends LogicGate{
       return "N"+title;
     }
   }
+  
+  @Override
+  public LogicGate[] GetGates(){
+    return gates;
+  }
 }
