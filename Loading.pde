@@ -7,7 +7,9 @@ String filepath(String filename){
 
 //load a project from a filepath. not additive
 boolean LoadProject(String filePath){
-  LogicGate[] loadedGates = LoadGatesFromFile(filePath);
+  println("new lt!");
+  long time = millis(); 
+  LogicGate[] loadedGates = LoadGatesFromFile(filePath,new HashMap<String,LogicGateGroup>());
   if(loadedGates!=null){
     circuit = new ArrayList<LogicGate>();
     for(LogicGate lg : loadedGates){
@@ -17,13 +19,14 @@ boolean LoadProject(String filePath){
     notifications.add("Loaded \""+filePath+"\" !");
     ClearGateSelection();
     ClearPinSelection();
+    println("took "+(millis()-time)+"ms");
     return true;
   }
   notifications.add("Unable to load \""+filePath+"\" :(");
   return false;
 }
 
-LogicGate[] LoadGatesFromFile(String filepath){
+String LoadGateString(String filepath){
   String[] file;
   try{
     file = loadStrings(filepath);
@@ -41,12 +44,22 @@ LogicGate[] LoadGatesFromFile(String filepath){
     println("\"" + filepath + " is not my type of file tbh");
     return null; 
   }
-  String data = file[1];
+  
+  return file[1];
+}
+
+LogicGate[] LoadGatesFromFile(String filepath, HashMap<String,LogicGateGroup> lookupTable){
+  String data = LoadGateString(filepath);
+  //so that we don't load files we've already loaded
+  return LoadGatesFromString(data,"Something went wrong while loading \""+filepath+"\" : ", lookupTable);
+}
+
+LogicGate[] LoadGatesFromString(String data, String err, HashMap<String,LogicGateGroup> lt){
   LogicGate[] loadedGates;
   try{
-    loadedGates = RecursiveLoad(data);
+    loadedGates = RecursiveLoad(data,lt);
   } catch(Exception e){
-    String err = "Something went wrong while loading \""+filepath+"\" : "+ e.getMessage(); 
+    err += e.getMessage(); 
     println(err);
     notifications.add(err);
     return null;
@@ -54,7 +67,6 @@ LogicGate[] LoadGatesFromFile(String filepath){
   return loadedGates;
 }
 
-//tf is this hackerrank? this is definately one of those questions you would find there lmao
 int findCorrespondingBracket(String data, int start, int end, char openBrace, char closeBrace){
   int sum = 0;
   for(int i = start; i < end; i++){
@@ -69,9 +81,8 @@ int findCorrespondingBracket(String data, int start, int end, char openBrace, ch
   return -1;
 }
 
-
 //Load all the parts in a string into an array
-LogicGate[] RecursiveLoad(String data){
+LogicGate[] RecursiveLoad(String data, HashMap<String,LogicGateGroup> lt){
   int partsIndex = data.lastIndexOf('|');
   int start = data.indexOf('{');
   int end = data.indexOf(',',start+1);
@@ -83,12 +94,12 @@ LogicGate[] RecursiveLoad(String data){
     if(data.charAt(start+1)=='{'){
       //Find the end of this part and recursive load the {} bit and then it's metadata with LoadGroup
       end = findCorrespondingBracket(data,start,data.length(), '(', ')');
-      loaded[i] = LoadGroup(data,start,end);
+      loaded[i] = LoadGroup(data,start,end,lt);
     } else if(data.charAt(start+1)=='N'){
-      //load an embedded group
+      //load a non-embedded group
       start += 2;
       end = data.indexOf(',', start);
-      loaded[i] = LoadSavedGroup(data.substring(start,end));
+      loaded[i] = LoadSavedGroup(data.substring(start,end), lt);
       loadMetadata(loaded[i],data,end+1, partsIndex);
     } else {
       end = data.indexOf(')',start+1);
@@ -199,11 +210,20 @@ LogicGate LoadPart(String data, int start, int end){
   return lg;
 }
 
+/*
+LogicGate LoadEmbededGroup(String data, int start, int end, StringDict macroLookup){
+  int a = start+2;
+  int b = data.indexOf(',',a);
+  
+  if(macroLookup.hasKey(
+}
+*/
+
 //Loads a group. start is the opening (, and end is the ). Groups can have more groups. The base case would be a regular LoadPart
-LogicGate LoadGroup(String data, int start, int end){
+LogicGate LoadGroup(String data, int start, int end, HashMap<String,LogicGateGroup> lt){
   int partEnd = findCorrespondingBracket(data,start+1,end,'{','}')+1; 
   //Connections are resolved in here
-  LogicGate[] gates = RecursiveLoad(data.substring(start+1,partEnd));
+  LogicGate[] gates = RecursiveLoad(data.substring(start+1,partEnd),lt);
   LogicGateGroup lg = new LogicGateGroup(gates);
   start = partEnd + 1;
   loadMetadata(lg,data,start,end);
@@ -240,11 +260,19 @@ void UpdateGroups(){
   logicGateGroupAddMenu.UpdateEntries(finalGroups.toArray(new String[finalGroups.size()]));
 }
 
-LogicGateGroup LoadSavedGroup(String filename){
-  LogicGate[] gates = LoadGatesFromFile(filepath(filename));
-  if(gates==null)
+LogicGateGroup LoadSavedGroup(String filename, HashMap<String,LogicGateGroup> lt){
+  //save unknown gates to the lookup table.
+  
+  if(!lt.containsKey(filename)){
+    String data = LoadGateString(filepath(filename));
+    LogicGate[] gates = LoadGatesFromString(data,"couldn't load presaved group "+filename+":", lt);
+    lt.put(filename, new LogicGateGroup(gates));
+  }
+  
+  //now get the gate from the lt
+  LogicGateGroup lg = lt.get(filename).CopySelf();
+  if(lg==null)
     return null;
-  LogicGateGroup lg = new LogicGateGroup(gates);
   lg.expose = false;
   lg.SetName(filename);
   return lg;
@@ -252,6 +280,6 @@ LogicGateGroup LoadSavedGroup(String filename){
 
 void AddGateGroup(int i){
   String filename = logicGateGroupAddMenu.GetEntry(i);
-  LogicGate lg = LoadSavedGroup(filename);
+  LogicGate lg = LoadSavedGroup(filename, new HashMap<String,LogicGateGroup>());
   circuit.add(lg);
 }

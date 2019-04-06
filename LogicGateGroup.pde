@@ -199,7 +199,7 @@ class LogicGateGroup extends LogicGate{
   }
   
   @Override
-  public LogicGate CopySelf(){
+  public LogicGateGroup CopySelf(){
     LogicGateGroup lg = new LogicGateGroup(CopyPreservingConnections(gates));
     lg.CopyValues(this);
     lg.SetName(title);
