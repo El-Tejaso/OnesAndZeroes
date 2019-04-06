@@ -165,7 +165,30 @@ class Cursor2D extends UIElement{
     noFill();
     rect(WorldX()-w/2,WorldY()-w/2,w,w);
     drawCrosshair(WorldX(),WorldY(),w);
-    UIRespond();
+    if((mouseOver)&&(draggedElement!=this))
+      return;
+      
+    if(mousePressed&&(mouseButton==LEFT)){
+      if(!clicked){
+        clicked = true;
+        OnMousePress();
+      } else {
+        if(draggedElement == null){
+          draggedElement = this;
+          OnDragStart();
+        } else if(draggedElement==this){
+          OnDrag();
+        }
+      }
+    } else {
+      if(clicked){
+        clicked = false;
+        OnMouseRelease();
+      }
+      if(draggedElement==this){
+        draggedElement = null;
+      }
+    }
   }
   
   @Override
@@ -179,21 +202,25 @@ class Cursor2D extends UIElement{
     float dY = ToWorldY(mouseY)-ToWorldY(pmouseY);
     xBounds += dX;
     yBounds += dY;
+    DrawSelect();
   }
   
-  public void Place(float x1, float y1){
-    if(draggedElement!=this){
-      x=x1; y=y1;
-    }
+  @Override
+  public void OnMousePress(){
+    Reset();
   }
   
   public void DrawSelect(){
+    noFill();
+    stroke(foregroundCol);
     rect(WorldX(),WorldY(),xBounds,yBounds);
   }
   
   public void Reset(){
     xBounds = 0;
     yBounds = 0;
+    x = ToWorldX(mouseX);
+    y = ToWorldY(mouseY);
   }
 }
 

@@ -705,25 +705,18 @@ void draw(){
         IncrementDeleteTimer(gateUnderMouse.x, gateUnderMouse.y,40,gateUnderMouse.h, gateUnderMouse);
       }
     } else {
-      boolean mouseJustPressed = false;
       if(prevMouseState != mousePressed){
-        mouseJustPressed = true;
-      }
-      if(mouseJustPressed){
-        if(!((draggedElement!=null)||(mouseOver))){
-          cursor.Place(MouseXPos(),MouseYPos());
+        //mouse was just pressed
+        if(!mouseOver){
           if(!keyDown(ShiftKey)){
             ClearGateSelection();
             ClearPinSelection();
           }
         }
-      }
+      }      
       
       //Object selection logic
-      if(draggedElement==cursor){
-        noFill();
-        cursor.DrawSelect();
-        
+      if(cursor == draggedElement){
         //Select gates
         float x1 = cursor.WorldX();
         float y1 = cursor.WorldY();
@@ -766,8 +759,6 @@ void draw(){
             }
           }
         }
-      } else {
-        cursor.Reset();
       }
     }
   } else {

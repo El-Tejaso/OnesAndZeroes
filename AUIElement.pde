@@ -10,7 +10,7 @@ boolean mouseOver = false;
 class UIElement{
   protected UIElement parent;
   public float x,y,w=5,h=5;
-  private boolean clicked = false;
+  protected boolean clicked = false;
   protected int dragThreshold = 1;
   protected boolean acceptUIInput = true;
   
