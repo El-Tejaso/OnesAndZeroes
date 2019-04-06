@@ -37,6 +37,8 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
   }
   
   public void UpdateDimensions(){
+    if(inputs==null)
+      return;
     if(inputs.length==0)
       return;
     
@@ -88,15 +90,6 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
       }
     }
     return -1;
-  }
-  
-  public void Decouple(){
-    deleted = true;
-    if(inputs!=null){
-      for(InPin p : inputs){
-        p.Connect(null);
-      }
-    }
   }
   
   public abstract LogicGate CopySelf();
@@ -154,14 +147,16 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     x = other.x;
     y = other.y;
     parent = other.parent;
-    for(int i = 0; i < inputs.length; i++){
-      inputs[i].Connect(other.inputs[i].input);
-      inputs[i].name = other.inputs[i].name;
+    if(inputs!=null){
+      for(int i = 0; i < inputs.length; i++){
+        inputs[i].Connect(other.inputs[i].input);
+        inputs[i].name = other.inputs[i].name;
+      }
     }
     
     if(outputs!=null){
       for(int i = 0; i < outputs.length; i++){
-        outputs[i].SetValue(other.outputs[i].Value());
+        outputs[i].SetState(other.outputs[i].Value());
         outputs[i].name = other.outputs[i].name;
       }
     }
@@ -222,16 +217,20 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     noFill();
     super.Draw();
     
-    if(inputs!=null){
-      for(int i = 0; i < inputs.length; i++){
-        inputs[i].DrawLink();
-      }
-    }
+    DrawLinks();
     
     if(showText){
       textAlign(CENTER);
       fill(foregroundCol);
       text(title,WorldX(),WorldY()+TEXTSIZE/4.0);
+    }
+  }
+  
+  public void DrawLinks(){
+    if(inputs!=null){
+      for(int i = 0; i < inputs.length; i++){
+        inputs[i].DrawLink();
+      }
     }
   }
     

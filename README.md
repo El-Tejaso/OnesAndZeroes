@@ -11,12 +11,13 @@ Sidenote: OnesAndZeroes only uses `true` and `false` to represent gate states, o
 - Drag a rectangle to do a rectangle selection (hold `Shift` while doing this to make it additive). 
 - Hold right-click on a gate/selection to delete it
 - Press `[Shift] D` to duplicate a selection (totally didnt steal that from blender or anything haha)
+- Press `[Shift] A` to select all gates
 - Press `[Shift] C` to connect the selected inputs and outputs *in the order that they were selected*. Very useful
 
 There are probably more controls out there, the bottom left of the screen will show you what actions you can do at any given moment
 
 ## How it works
-I'd assume that your goal is to build some sort of computer using primitive logic gates and a pulser only.
+The overarching goal is to build some sort of computer 'from the ground up' using just primitive logic gates and a clock pulse, but it can be used to just see how gates interact.
 
 ![Example Image](./Images/Screenshot1.png)
 

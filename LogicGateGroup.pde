@@ -199,14 +199,6 @@ class LogicGateGroup extends LogicGate{
   }
   
   @Override
-  public void Decouple(){
-    super.Decouple();
-    for(LogicGate lg : gates){
-      lg.Decouple();
-    }
-  }
-  
-  @Override
   public LogicGate CopySelf(){
     LogicGateGroup lg = new LogicGateGroup(CopyPreservingConnections(gates));
     lg.CopyValues(this);

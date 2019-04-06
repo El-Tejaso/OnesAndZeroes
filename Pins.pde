@@ -142,7 +142,7 @@ class InPin extends Pin{
   
   public void DrawLink(){
     if(IsConnected()){
-      stroke(input.Value() ? trueColOpaque : falseColOpaque);
+      stroke(input.Value() ? trueCol : falseCol);
       float dir = (WorldX() - input.WorldX()) > 0 ? 1 : -1;
       int dirY = (WorldY() - input.WorldY()) > 0 ? 1 : -1;
       float offsetIn; 
@@ -158,16 +158,30 @@ class InPin extends Pin{
     }
   }
   
+  //removes references to deleted nodes. if the node that was deleted had only one input and output, we can simply dissolve the node
+  public void CleanupDissolve(){
+    if(input==null)
+      return;
+    if(!input.Chip().deleted)
+      return;
+    
+    boolean dissolved = false;
+    if((input.Chip().inputs!=null)&&(input.Chip().outputs!=null)){
+      if((input.Chip().inputs.length==1)&&(input.Chip().outputs.length==1)){
+        //we can merge with an output on the other side
+        dissolved = true;
+        Connect(input.Chip().inputs[0].input);
+      }
+    }
+    
+    if(!dissolved){
+      Connect(null);
+    }
+  }
+  
   @Override
   public boolean IsConnected(){
-    if(input!=null){
-      if(input.Chip().deleted){
-        Connect(null);
-        return false;
-      }
-      return true;
-    }
-    return false;
+    return (input!=null);    
   }
 
   @Override

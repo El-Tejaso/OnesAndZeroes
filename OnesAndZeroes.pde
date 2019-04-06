@@ -1,4 +1,4 @@
-//---------A logic gate simulator---------- //<>// //<>//
+//---------A logic gate simulator---------- //<>//
 //By Tejas Hegde
 //To add:
 // Cycle detection when loading non-embedded groups
@@ -9,6 +9,7 @@ final int TEXTSIZE = 12;
 
 color backgroundCol = color(255);
 color foregroundCol = color(0);
+color cursorCol = color(0,0,0,100);
 color trueCol = color(0,255,0,100);
 color trueColOpaque = color(0,255,0);
 color falseCol = color(255,0,0,100);
@@ -124,7 +125,6 @@ void setup(){
   //textFont(createFont("Monospaced",TEXTSIZE));
   circuit = new ArrayList<LogicGate>();
   circuitGroups = new ArrayList<LogicGateGroup>();
-  deletionQueue = new ArrayList<LogicGate>();
   selection = new ArrayList<LogicGate>();
   
   //setup the input system
@@ -282,37 +282,42 @@ boolean dragStarted = false;
 
 //deletes the given gate, else deletes everything that's selected
 void DeleteGates(LogicGate lg){
+  for(int i = 0; i < circuit.size();i++){
+    LogicGate lg2 = circuit.get(i);
+    lg2.arrayIndex = i;
+  }
+  
   if(selection.size()==0){
-    deletionQueue.add(lg);
-    lg.Decouple();
+    lg.deleted = true;
   } else {
     for(LogicGate selectedGate : selection){
-      deletionQueue.add(selectedGate);
-      selectedGate.Decouple();
+      selectedGate.deleted = true;
     }
   }
+  
+  Cleanup();
 }
-
-void DeleteGates(LogicGate[] lg){
-  for(LogicGate g : lg){
-    deletionQueue.add(g);
-    g.Decouple();
-  }
-}
-
-ArrayList<LogicGate> deletionQueue;
 
 void Cleanup(){
-  if(deletionQueue.size()>0){
-    for(LogicGate lg : deletionQueue){
-      circuit.remove(lg);
-      lg.Decouple();
+  //merge/remove all links to deleted gates
+  for(int i = 0; i < circuit.size(); i++){
+    LogicGate lg = circuit.get(i);
+    if(lg.inputs!=null){
+      for(int j = 0; j  < lg.inputs.length; j++){
+        lg.inputs[j].CleanupDissolve();
+      }
     }
-    deletionQueue.clear();
-    
-    ClearGateSelection();
-    ClearPinSelection();
   }
+  //remove all deleted gates from the circuit
+  for(int i = 0; i < circuit.size(); i++){
+    if(circuit.get(i).deleted){
+      circuit.remove(i);
+      i--;
+    }
+  }
+  //make sure we aren't selecting anything that's been deleted
+  ClearGateSelection();
+  ClearPinSelection();
 }
 
 //Copies the selection
@@ -341,6 +346,8 @@ void Duplicate(){
 
 void SelectAll(){
   selection.clear();
+  numSelected = 0;
+  abstraction = 0;
   for(LogicGate lg : circuit){
     selection.add(lg);
     numSelected += lg.NumGates();
@@ -436,19 +443,32 @@ InPin lastSelectedInput = null;
 ArrayList<OutPin> selectedOutputs = new ArrayList<OutPin>();
 ArrayList<InPin> selectedInputs = new ArrayList<InPin>();
 void ConnectSelected(){
-  int n = min(selectedInputs.size(),selectedOutputs.size());
-  if(n==0){
+  if((selectedInputs.size()==0)&&(selectedOutputs.size()==0))
+    return;
+    
+  if(selectedOutputs.size()==0){
     for(InPin p : selectedInputs){
       p.Connect(null);
     }
+    return;
   }
-  if(selectedOutputs.size()>0){
-    for(int i = 0; i < selectedInputs.size(); i++){
-      MakeConnection(selectedOutputs.get(i%selectedOutputs.size()),selectedInputs.get(i));
-    }
-  } else {
-    for(int i = 0; i < selectedInputs.size(); i++){
-      MakeConnection(null,selectedInputs.get(i));
+  
+  for(int i = 0; i < selectedInputs.size(); i++){
+    MakeConnection(selectedOutputs.get(i%selectedOutputs.size()),selectedInputs.get(i));
+  }
+}
+
+void ConnectSameName(){
+  if(selectedOutputs.size()==0)
+    return;
+  
+  for(OutPin op : selectedOutputs){
+    for(LogicGate lg : circuit){
+      for(InPin ip : lg.inputs){
+        if(ip.Name().equals(op.Name())){
+          ip.Connect(op);
+        }
+      }
     }
   }
 }
@@ -504,7 +524,8 @@ String[] normalActions = {
   "[RMB]+drag: pan view",
   "[LMB]: move 2D cursor",
   "[LMB]+drag: select things",
-  "[Shift]+[LMB]+drag: additively select things"
+  "[Shift]+[LMB]+drag: additively select things",
+  "[Shift]+[A]: select all"
 };
 
 String[] gateActions = {
@@ -529,6 +550,10 @@ String[] selectedInputActions = {
   "[Shift]+[C]: disconnect"
 };
 
+String[] selectedOutputActions = {
+  "[Shift]+[F]: Find and connect to inputs with the same name (doesn't work well when multiple selected outputs have the same name)"
+};
+
 float DrawInstructions(String[] actions,float h, float v,float spacing){
     for(int i = actions.length-1; i >= 0; i --){
       String s = actions[i];
@@ -550,11 +575,17 @@ void DrawAvailableActions(){
   if(selection.size()>0){
     v = DrawInstructions(selectedActions,h,v,spacing);
   }
-  fill(0,200,200);
+  fill(selInputCol);
   if((selectedInputs.size()>0)&&(selectedOutputs.size()>0)){
     v = DrawInstructions(selectedPinActions,h,v,spacing);
-  } else if(selectedInputs.size()>0){
-    v=DrawInstructions(selectedInputActions,h,v,spacing);
+  } else {
+    if(selectedInputs.size()>0){
+      v=DrawInstructions(selectedInputActions,h,v,spacing);
+    } 
+    
+    if(selectedOutputs.size()>0){
+      v=DrawInstructions(selectedOutputActions,h,v,spacing);
+    }  
   }
   
   fill(foregroundCol);
@@ -566,6 +597,7 @@ void DrawAvailableActions(){
   } else {
     v = DrawInstructions(normalActions,h,v,spacing);
   }
+  
   textSize(TEXTSIZE+4);
   text("Actions available: ",h,v);
   textSize(TEXTSIZE);
@@ -742,9 +774,11 @@ void draw(){
     deleteTimer = 0;
   }
   
+  
   for(LogicGate lGate : selection){
-    stroke(255,0,0);
+    stroke(0,0,255);
     drawCrosshair(lGate.WorldX(),lGate.WorldY(),max(10.0/scale,lGate.w));
+    lGate.DrawLinks();
   }
   
   stroke(selInputCol);
@@ -766,7 +800,6 @@ void draw(){
   
   handleKeyShortcuts();  
   
-  Cleanup();
   prevMouseState = mousePressed;
 }
 

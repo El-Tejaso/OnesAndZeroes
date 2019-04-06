@@ -159,11 +159,11 @@ class Cursor2D extends UIElement{
   
   @Override
   public void Draw(){
-    w=20.0/scale;
+    w=100.0/scale;
     h=w;
-    stroke(foregroundCol);
+    stroke(cursorCol);
     noFill();
-    ellipse(WorldX(),WorldY(),w,w);
+    rect(WorldX()-w/2,WorldY()-w/2,w,w);
     drawCrosshair(WorldX(),WorldY(),w);
     UIRespond();
   }
@@ -207,6 +207,8 @@ void handleKeyShortcuts(){
         ConnectSelected();
       } else if (keyPushed(AKey)){
         SelectAll();
+      } else if (keyPushed(FKey)){
+        ConnectSameName();
       }
     }
     

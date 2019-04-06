@@ -11,7 +11,7 @@ class UIElement{
   protected UIElement parent;
   public float x,y,w=5,h=5;
   private boolean clicked = false;
-  protected int dragThreshold = 0;
+  protected int dragThreshold = 1;
   protected boolean acceptUIInput = true;
   
   public void MoveTo(float x1, float y1){
@@ -47,11 +47,11 @@ class UIElement{
           OnMousePress();
           clicked=true;
         } else {
-          if(!(draggedElement==this))
+          if(draggedElement!=this)
             OnMouseDown();
         }
         
-        if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>dragThreshold){
+        if(abs(mouseX-pmouseX)+abs(mouseY-pmouseY)>=dragThreshold){
             if(draggedElement==null){
               draggedElement = this;
               OnDragStart();

@@ -1,5 +1,4 @@
 //Contains all functions associated with loading gates from a file
-
 final String dir = "Saved Circuits\\"; 
 
 String filepath(String filename){
@@ -25,13 +24,21 @@ boolean LoadProject(String filePath){
 }
 
 LogicGate[] LoadGatesFromFile(String filepath){
-  String[] file = loadStrings(filepath);
+  String[] file;
+  try{
+    file = loadStrings(filepath);
+  } catch(RuntimeException e){
+    notifications.add("\"" + filepath + "\" is close to but not a real file. For some reason, this exception isn't thrown when the name is completely different");
+    return null;
+  }
   if(file==null){
-    println("Not a file :(");
+    String err = "\"" + filepath + "\" wasn't found"; 
+    println(err);
+    notifications.add(err);
     return null;
   }
   if(file.length < 2){
-    println("not my type of file tbh");
+    println("\"" + filepath + " is not my type of file tbh");
     return null; 
   }
   String data = file[1];
@@ -39,7 +46,9 @@ LogicGate[] LoadGatesFromFile(String filepath){
   try{
     loadedGates = RecursiveLoad(data);
   } catch(Exception e){
-    println("Something went wrong: " + e.getMessage());
+    String err = "Something went wrong while loading \""+filepath+"\" : "+ e.getMessage(); 
+    println(err);
+    notifications.add(err);
     return null;
   }
   return loadedGates;
