@@ -35,12 +35,6 @@ Load and save parts using this menu:
 
 Embedding groups is not reccomended unless sharing the file. When loading a file, embedded gates will take precedence over other saved files, so edits made to parts that appear in another part with it's groups embedded won't be affected (which is undesireable in most cases). More information on the file format can be found in `File Format.md`.
 
-Load in a file as a part using this menu (subject to change soon): 
-
-![Load-Part-menu](./Images/LoadPart.png)
-
-It contains everything that was saved in the `Saved Circuits` directory. You can no longer manually group objects.
-
 ### Naming inputs and outputs, Batch renaming
 
 Click on the input/output name, type in a new name, and then hit enter. Names are used to keep track of pins. Selecting multiple of the same kind of pin will enable a "batch rename", which will also ad a number to the name based on selection order:
