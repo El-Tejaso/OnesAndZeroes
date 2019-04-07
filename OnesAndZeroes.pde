@@ -1,7 +1,7 @@
 //---------A logic gate simulator---------- //<>// //<>//
 //By Tejas Hegde
 //To add:
-// Cycle detection when loading non-embedded groups
+// Sorting saved groups into alphabetical bins
 //-----------------------------------------
 import java.util.Collections;
 import java.util.Arrays;
@@ -18,8 +18,8 @@ color falseColOpaque = color(255,0,0);
 color gateHoverCol = color(0,0,255,100);
 color menuHeadingCol = color(0,0,255);
 color warningCol = color(255,0,0);
-color selOutputCol = color(255,0,255);
-color selInputCol = color(0,255,255); //<>// //<>// //<>//
+color selOutputCol = color(255,128,0);
+color selInputCol = color(0,162,232); //<>// //<>// //<>//
 
 boolean contains(LogicGate[] arr, LogicGate lg){
   for(LogicGate l : arr){
@@ -31,6 +31,8 @@ boolean contains(LogicGate[] arr, LogicGate lg){
 
 //Makes sure that the copied gates aren't connected to the old ones
 LogicGate[] CopyPreservingConnections(LogicGate[] gates){
+  if(gates==null)
+    return null;
   LogicGate[] newGates = new LogicGate[gates.length];
   
   for(int i = 0; i < gates.length; i++){
@@ -204,8 +206,8 @@ void setup(){
   menus.add(loadButton);
   
   textSize(TEXTSIZE + 4);
-  final String noEmbedText = "groups will be saved as filenames pointing to other savefiles";
-  final String embedText = "groups will be saved recursively as primitives";
+  final String noEmbedText = "groups won't be embedded into the file (better for editing)";
+  final String embedText = "groups will be embedded into the file (better for sharing savefiles)";
   float textW = textWidth(noEmbedText);
   textSize(TEXTSIZE);
   embedToggle = new Button(embed ? embedText : noEmbedText, -20 - textW/2,-80, textW+20, TEXTSIZE + 4, gateHoverCol, trueCol,
@@ -768,21 +770,27 @@ void draw(){
   }
   
   stroke(selInputCol);
+  strokeWeight(3/scale);
   fill(selInputCol);
   int i = 0;
+  textAlign(RIGHT);
   for(InPin p : selectedInputs){
-    drawCrosshair(p.WorldX(), p.WorldY(),5);
-    text(i,p.WorldX()-5, p.WorldY());
+//    drawCrosshair(p.WorldX(), p.WorldY(),5);
+    line(p.WorldX()-3, p.WorldY(),p.WorldX()+3, p.WorldY());
+    text(i,p.WorldX()-5, p.WorldY()+TEXTSIZE/4);
     i++;
   }
   stroke(selOutputCol);
   fill(selOutputCol);
   i = 0;
+  textAlign(LEFT);
   for(OutPin p : selectedOutputs){
-    drawCrosshair(p.WorldX(), p.WorldY(),5);
-    text(i,p.WorldX()+5, p.WorldY());
+    //drawCrosshair(p.WorldX(), p.WorldY(),5);
+    line(p.WorldX()-3, p.WorldY(),p.WorldX()+3, p.WorldY());
+    text(i,p.WorldX()+5, p.WorldY()+TEXTSIZE/4);
     i++;
   }
+  strokeWeight(1);
   
   handleKeyShortcuts();  
   
@@ -818,9 +826,10 @@ void Save(){
 }
 
 void Load(){
-  String filePath = filepath(fileNameField.Text());
+  String filename = fileNameField.Text();
+  String filePath = filepath(filename);
   if(!fileNameField.isTyping){
-    LoadProject(filePath);
+    LoadProject(filePath,filename);
   }
 }
 

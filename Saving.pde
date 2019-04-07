@@ -7,16 +7,14 @@ Button embedToggle;
 boolean embed = false;
 
 //stores a mapping between group names and group strings
-StringDict BuildLookupTable(ArrayList<LogicGate> list){
+void BuildLookupTable(ArrayList<LogicGate> list, StringDict lt) throws Exception{
   Collections.sort(list);
-  StringDict lt = new StringDict();
-  RecursiveBuild(lt, list.toArray(new LogicGate[list.size()]));
-  return lt;
+  RecursiveBuild(lt, list.toArray(new LogicGate[list.size()]), new ArrayList<String>());
 }
 
 //build the lookup table by recursing through each group's gates
 //we might be able to find cycles here as well
-void RecursiveBuild(StringDict lt, LogicGate[] array){
+void RecursiveBuild(StringDict lt, LogicGate[] array,ArrayList<String> cycleStack) throws Exception {
   if(array==null)
     return;
   //This will sort the gates by abstraction. changing the order of the gates shouldn't mess with functionality unless done after indexing
@@ -26,8 +24,13 @@ void RecursiveBuild(StringDict lt, LogicGate[] array){
     String lgName = lg.PartIDString(false); 
     if(lgName.charAt(0)=='N'){
       if(!lt.hasKey(lgName)){
-        RecursiveBuild(lt,lg.GetGates());
+        if(cycleStack.contains(lgName)){
+          throw new Exception("File cannot be saved: " + lgName + " is being used in " + lgName + ", causing an infinite recursion");
+        }
+        cycleStack.add(lgName);
+        RecursiveBuild(lt,lg.GetGates(),cycleStack);
         lt.set(lgName, lg.PartIDString(true));
+        cycleStack.remove(cycleStack.size()-1);
       }
     }
   }
@@ -50,7 +53,15 @@ String CircuitString(ArrayList<LogicGate> cir){
   String s = "";
   if(embed){
     //list of all gates used mapped to a saved version
-    StringDict partsToEmbed = BuildLookupTable(circuit);
+    StringDict partsToEmbed = new StringDict();
+    try{
+      BuildLookupTable(circuit,partsToEmbed);
+    } catch (Exception e){
+      String notif = e.getMessage();
+      println(notif);
+      notifications.add(notif);
+      return notif;
+    }
     for(String k : partsToEmbed.keyArray()){
       s+=k;
       s+=partsToEmbed.get(k);

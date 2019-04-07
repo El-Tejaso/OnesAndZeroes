@@ -67,6 +67,6 @@ In order to make renaming faster, you can perform a `Batch Rename`. Select multi
 Thanks! There are still heaps of bugs to remove (probably), but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops within the circuit, the system is quite resilient to those). Good luck!
 
 #### New features in the works:
-- Detecting cycles in non-embedded savefiles
+- sorting saved files alphabetically
 - keyboard activated buttons
 - better wire wrangling and selecting

@@ -1,0 +1,2 @@
+OnesAndZeroes Savefile. Don't modify the next line if you want things to work proper
+{0,|}

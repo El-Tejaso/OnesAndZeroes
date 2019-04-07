@@ -23,6 +23,8 @@ class LogicGateGroup extends LogicGate{
   LogicGateGroup(LogicGate[] gateArray){
     gates = gateArray;
     title = "Group";
+    if(gateArray==null)
+      return;
     if(gateArray.length==0)
       return;
     //find the bounding box for the group
