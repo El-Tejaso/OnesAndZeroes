@@ -64,10 +64,9 @@ In order to make renaming faster, you can perform a `Batch Rename`. Select multi
 ![Batch renaming pins](./Images/BatchRename.png)
 
 ### So you actually read the manual eh?
-Thanks! There are still heaps of bugs to remove, but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops though, the system is quite resilient to those). Good luck!
+Thanks! There are still heaps of bugs to remove (probably), but hopefully you won't encounter any of them while you're building your computer. (Don't worry too much about feedback loops within the circuit, the system is quite resilient to those). Good luck!
 
 #### New features in the works:
 - Detecting cycles in non-embedded savefiles
-- Embedding savefiles properly with names pointing to embedded gates rather than just recursively saving the group wherever it appears
 - keyboard activated buttons
 - better wire wrangling and selecting

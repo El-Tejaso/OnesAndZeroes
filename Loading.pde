@@ -17,7 +17,7 @@ boolean LoadProject(String filePath){
     }
     ClearGateSelection();
     ClearPinSelection();
-    String notif = "Loaded "+filePath+" in "+(millis()-time)+"ms"; 
+    String notif = "Loaded \""+filePath+"\" in "+(millis()-time)+"ms"; 
     println(notif);
     notifications.add(notif+" !");
     return true;
@@ -286,6 +286,10 @@ LogicGateGroup LoadSavedGroup(String filename, HashMap<String,LogicGateGroup> lt
 
 void AddGateGroup(int i){
   String filename = logicGateGroupAddMenu.GetEntry(i);
+  int time = millis();
   LogicGate lg = LoadSavedGroup(filename, new HashMap<String,LogicGateGroup>());
+  String notif = "Loaded group \""+filename+"\" in "+(millis()-time)+"ms";
+  println(notif);
+  notifications.add(notif);
   circuit.add(lg);
 }
