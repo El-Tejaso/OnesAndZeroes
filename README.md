@@ -34,7 +34,7 @@ The selection can be duplicated with `Shift+D`, which is probably the best way t
 
 The selection can also be deleted by holding right-click on any selected element. If any pins are still connected, they will attempt to connect to the next gate after the deleted one, if at all possible:
 
-![Dissolving](./Images/dissolving.PNG)
+![Dissolving](./Images/dissolving.png)
 
 ### Linking I/O pins
 The initial way to do this is by dragging from one pin to another:
