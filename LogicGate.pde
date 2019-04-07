@@ -92,6 +92,15 @@ abstract class LogicGate extends UIElement implements Comparable<LogicGate>{
     return -1;
   }
   
+  public int InputIndex(InPin in){
+    for(int i = 0; i < inputs.length; i++){
+      if(inputs[i]==in){
+        return i;
+      }
+    }
+    return -1;
+  }
+  
   public abstract LogicGate CopySelf();
   public abstract int PartID();
   

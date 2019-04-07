@@ -167,10 +167,10 @@ class InPin extends Pin{
     
     boolean dissolved = false;
     if((input.Chip().inputs!=null)&&(input.Chip().outputs!=null)){
-      if((input.Chip().inputs.length==1)&&(input.Chip().outputs.length==1)){
-        //we can merge with an output on the other side
+      int thisIndex = input.Chip().OutputIndex(input);
+      if(thisIndex < input.Chip().inputs.length){
         dissolved = true;
-        Connect(input.Chip().inputs[0].input);
+        Connect(input.Chip().inputs[thisIndex].input);
       }
     }
     
