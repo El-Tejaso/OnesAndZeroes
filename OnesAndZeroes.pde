@@ -1,4 +1,4 @@
-//---------A logic gate simulator---------- //<>// //<>//
+//---------A logic gate simulator---------- //<>// //<>// //<>// //<>//
 //By Tejas Hegde
 //To add:
 // Sorting saved groups into alphabetical bins
@@ -122,6 +122,18 @@ void SetName(){
   pinToEditName = null;
 }
 
+int indexOf(String[] arr, String s){
+  for(int i = 0; i < arr.length; i++){
+    if(arr[i].equals(s))
+      return i;
+  }
+  return -1;
+}
+
+boolean isPowerOfTwo(int n){
+   return (n > 0 && ((n & (n - 1)) == 0));
+}
+
 void setup(){
   size(800,600);
   surface.setResizable(true);
@@ -136,38 +148,66 @@ void setup(){
   menus = new ArrayList<UIElement>();
   screenspaceMenus = new ArrayList<UIElement>(); 
   
-  UIElement logicGateAddMenu = new StringMenu(gateNames, "ADD GATE", new CallbackFunctionInt(){
+  StringMenu logicGateAddMenu = new StringMenu("ADD GATE", new CallbackFunctionString(){
     @Override
-    public void f(int i){
-      AddGate(CreateGate(primitiveGates[i]));
+    public void f(String s){
+      AddGate(CreateGate(primitiveGates[indexOf(gateNames,s)]));
     }
-  });
+  },11);
   
+  logicGateAddMenu.UpdateEntries(gateNames);
   logicGateAddMenu.MoveTo(4,0);
   
   menus.add(logicGateAddMenu);
-  UIElement inputGateAddMenu = new StringMenu(inputNames, "ADD INPUT GATE", new CallbackFunctionInt(){
+  StringMenu inputGateAddMenu = new StringMenu("ADD INPUT GATE", new CallbackFunctionString(){
     @Override
-    public void f(int i){
-      AddGate(CreateGate(inputGates[i]));
+    public void f(String s){
+      AddGate(CreateGate(inputGates[indexOf(inputNames,s)]));
     }
-  });
+  },11);
+  inputGateAddMenu.UpdateEntries(inputNames);
   menus.add(inputGateAddMenu);
   inputGateAddMenu.MoveTo(logicGateAddMenu.w+10,0);
   
-  UIElement outputGateAddMenu = new StringMenu(outputNames, "ADD OUTPUT GATE", new CallbackFunctionInt(){
+  StringMenu outputGateAddMenu = new StringMenu("ADD OUTPUT GATE", new CallbackFunctionString(){
     @Override
-    public void f(int i){
-      AddGate(CreateGate(outputGates[i]));
+    public void f(String s){
+      AddGate(CreateGate(outputGates[indexOf(outputNames,s)]));
     }
-  });
+  },11);
+  outputGateAddMenu.UpdateEntries(outputNames);
   outputGateAddMenu.MoveTo(inputGateAddMenu.x+inputGateAddMenu.w/2f+10,0);
   menus.add(outputGateAddMenu);
   
-  logicGateGroupAddMenu = new StringMenu(new String[]{}, "ADD SAVED", new CallbackFunctionInt(){
+  logicGateGroupAddMenu = new SortingStringMenu("ADD SAVED", 11, new CallbackFunctionString(){
     @Override
-    public void f(int i){
-      AddGateGroup(i);
+    public void f(String s){
+      AddGateGroup(s);
+    }
+  },
+  new KeygenFunction(){
+    @Override
+    public String f(String s){
+      int start = -1;
+      for(int i = 0; i < s.length(); i++){
+        if(Character.isDigit(s.charAt(i))){
+          start = i;
+          break;
+        }
+      }
+      if(start >= 0){
+        int end = start+1;
+        while((end<s.length())&&(Character.isDigit(s.charAt(end)))){
+          end++;
+        }
+        
+        int number = int(s.substring(start,end));
+        if(isPowerOfTwo(number)){
+          return number + " Bit";
+        }
+      }
+      
+      return s.substring(0,1);
     }
   });
   
@@ -228,7 +268,7 @@ void setup(){
   AddGate(CreateGate(INPUTGATE));
 }
 
-StringMenu logicGateGroupAddMenu;
+SortingStringMenu logicGateGroupAddMenu;
 ArrayList<UIElement> menus;
 ArrayList<UIElement> screenspaceMenus;
 
@@ -819,9 +859,10 @@ void DrawNotifications(){
 }
 
 void Save(){
+  String filename = fileNameField.Text();
   String filePath = filepath(fileNameField.Text());
   if(!fileNameField.isTyping){
-    SaveProject(filePath);
+    SaveProject(filePath,filename);
   }
 }
 

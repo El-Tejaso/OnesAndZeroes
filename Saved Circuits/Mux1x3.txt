@@ -1,0 +1,2 @@
+OnesAndZeroes Savefile. Don't modify the next line if you want things to work proper
+{6,(NMux1,324.62903,-161.05545,|I|select,sel0,sel1,|O|out,0,)(0,128.37769,-70.52571,|I|select1,|O|select1,0,)(0,129.14745,-85.081474,|I|select0,|O|select0,0,)(NMux1x2,222.36931,-114.52352,|I|i,i,i,i,select0,select1,|O|out,0,)(NMux1x2,214.77126,-186.70497,|I|i,i,i,i,select0,select1,|O|out,0,)(0,128.37769,-54.69644,|I|select2,|O|select2,0,)|<0>[5,0][4,0][3,0]<1>[]<2>[]<3>[][][][][2,0][1,0]<4>[][][][][2,0][1,0]<5>[]}

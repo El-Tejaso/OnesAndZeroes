@@ -7,9 +7,9 @@ Button embedToggle;
 boolean embed = false;
 
 //stores a mapping between group names and group strings
-void BuildLookupTable(ArrayList<LogicGate> list, StringDict lt) throws Exception{
+void BuildLookupTable(ArrayList<LogicGate> list, StringDict lt,  ArrayList<String> stack) throws Exception{
   Collections.sort(list);
-  RecursiveBuild(lt, list.toArray(new LogicGate[list.size()]), new ArrayList<String>());
+  RecursiveBuild(lt, list.toArray(new LogicGate[list.size()]), stack);
 }
 
 //build the lookup table by recursing through each group's gates
@@ -37,25 +37,27 @@ void RecursiveBuild(StringDict lt, LogicGate[] array,ArrayList<String> cycleStac
 }
 
 //write the gate to a text file
-void SaveProject(String filePath){
+void SaveProject(String filePath,String filename){
+  ArrayList<String> stack = new ArrayList<String>();
+  stack.add(filename);
   String[] s = { 
                   "OnesAndZeroes Savefile. Don't modify the next line if you want things to work proper", 
-                  CircuitString(circuit)
+                  CircuitString(circuit,stack)
                 };
   saveStrings(filePath,s);
   
   //updates the menu
-  UpdateGroups();
+  logicGateGroupAddMenu.AddEntry(filename,true);
   notifications.add("Saved \""+filePath+"\" !");
 }
 
-String CircuitString(ArrayList<LogicGate> cir){
+String CircuitString(ArrayList<LogicGate> cir, ArrayList stack){
   String s = "";
   if(embed){
     //list of all gates used mapped to a saved version
     StringDict partsToEmbed = new StringDict();
     try{
-      BuildLookupTable(circuit,partsToEmbed);
+      BuildLookupTable(circuit,partsToEmbed,stack);
     } catch (Exception e){
       String notif = e.getMessage();
       println(notif);

@@ -42,17 +42,17 @@ String LoadStringData(String filepath){
     file = loadStrings(filepath);
   } catch(RuntimeException e){
     notifications.add("\"" + filepath + "\" is close to but not a real file. For some reason, this exception isn't thrown when the name is completely different");
-    return null;
+    return "";
   }
   if(file==null){
     String err = "\"" + filepath + "\" wasn't found"; 
     println(err);
     notifications.add(err);
-    return null;
+    return "";
   }
   if(file.length < 2){
     println("\"" + filepath + " is not my type of file tbh");
-    return null; 
+    return ""; 
   }
   
   return file[1];
@@ -308,12 +308,13 @@ LogicGateGroup LoadSavedGroup(String filename, HashMap<String,LogicGateGroup> lt
   return lg;
 }
 
-void AddGateGroup(int i){
-  String filename = logicGateGroupAddMenu.GetEntry(i);
+void AddGateGroup(String s){
+  String filename = s;
   int time = millis();
   LogicGate lg;
   try{
-    lg = LoadSavedGroup(filename, new HashMap<String,LogicGateGroup>(),new ArrayList<String>());
+    ArrayList<String> stack = new ArrayList<String>();
+    lg = LoadSavedGroup(filename, new HashMap<String,LogicGateGroup>(),stack);
   } catch (Exception e){
     String notif = e.getMessage();
     println(notif);
@@ -323,5 +324,7 @@ void AddGateGroup(int i){
   String notif = "Loaded group \""+filename+"\" in "+(millis()-time)+"ms";
   println(notif);
   notifications.add(notif);
+  lg.x = cursor.x;
+  lg.y = cursor.y;
   circuit.add(lg);
 }

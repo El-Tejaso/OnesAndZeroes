@@ -11,40 +11,155 @@ abstract class CallbackFunction {
   public abstract void f();
 }
 
+abstract class CallbackFunctionString{
+  public abstract void f(String s);
+}
+
+//generates a key from a string. there are a number of ways to do this. goes with the sorting string menu
+abstract class KeygenFunction{
+  public abstract String f(String s);
+}
+
+//made of multiple string menus
+class SortingStringMenu extends UIElement{
+  ArrayList<StringMenu> menus;
+  ArrayList<String> keys;
+  String title;
+  CallbackFunctionString f;
+  KeygenFunction kgf;
+  //for completeness, we can add another function that compares the keys that we can use to sort
+  float elementHeight;
+  float padding = 4;
+  
+  SortingStringMenu(String t, float elementHeight, CallbackFunctionString f, KeygenFunction kgf){
+    title = t;
+    this.elementHeight = elementHeight;
+    this.f = f;
+    this.kgf = kgf;
+    menus = new ArrayList<StringMenu>();
+    keys = new ArrayList<String>();
+  }
+  
+  void updateDimensions(){
+    for(StringMenu m : menus){
+      m.updateDimensions();
+    }
+    
+    float xPos = padding;
+    float yPos = 3*padding+elementHeight;
+    int numCols = 6;
+    int currentCol = 0;
+    float maxHeight = 0;
+    float maxWidth = 0;
+    for(StringMenu m : menus){
+      m.MoveTo(xPos,yPos);
+      xPos += m.w + padding;
+      maxHeight = max(maxHeight, m.h);
+      maxWidth = max(xPos,maxWidth);
+      currentCol++;
+      if(currentCol == numCols){
+        yPos += maxHeight + 2*padding;
+        xPos = padding;
+        maxHeight = 0;
+        currentCol = 0;
+      }
+    }
+    x-=w/2;
+    y-=h/2;
+    w = maxWidth;
+    h = yPos + maxHeight + 3*padding + elementHeight;
+    x+=w/2;
+    y+=h/2;
+    
+    for(StringMenu m : menus){
+      m.x-=w/2;
+      m.y-=h/2;
+    }
+  }
+  
+  void AddEntry(String s, boolean noRepeat){
+    if((s==null)||(s.isEmpty()))
+      return;
+      
+    //figure out which bin to group S into, and then add the entry
+    String k = kgf.f(s);
+    if(!keys.contains(k)){
+      keys.add(k);
+      Collections.sort(keys);
+      StringMenu newMenu = new StringMenu(k, f, elementHeight*4/5);
+      newMenu.parent = this;
+      menus.add(keys.indexOf(k), newMenu);
+    }
+    if(noRepeat){
+      if(!menus.get(keys.indexOf(k)).HasEntry(s)){
+        menus.get(keys.indexOf(k)).AddEntry(s);
+      }
+    } else {
+      menus.get(keys.indexOf(k)).AddEntry(s);
+    }
+    updateDimensions();
+  }
+  
+  public void UpdateEntries(String[] arr){
+    menus.clear();
+    for(String s : arr){
+      AddEntry(s,true);
+      println(s);
+    }
+    updateDimensions();
+  }
+  
+  @Override
+  void Draw(){
+    noFill();
+    super.Draw();
+    for(StringMenu m : menus){
+      m.Draw();
+    }
+    text(title, WorldX(), WorldY()-h/2+elementHeight+padding);
+  }
+}
 
 class StringMenu extends UIElement{
   ArrayList<Button> elements;
   float elementHeight = 11;
   float padding = 2;
   String heading;
-  CallbackFunctionInt f;
+  CallbackFunctionString f;
   
-  private void updateDimensions(String[] arr){
-    if(arr.length==0)
-      return;
+  private void updateDimensions(){
     //setup the dimensions
-    int max = heading.length();
-    for(String s : arr){
-      if(s.length() > max){
-        max = s.toString().length();
-      }
+    textSize(elementHeight+2);
+    float max = textWidth(heading);
+    for(Button b : elements){
+      max = max(max, textWidth(b.Text()));
     }
+    textSize(TEXTSIZE);
+    float cornerX = x-w/2;
+    float cornerY = y-h/2;
     
-    x -= w/2;
-    y -= h/2;
+    w = max + 2 * padding;
+    h = (elements.size()+1) * (elementHeight+padding) + padding;
     
-    w = max * 7 + 20 + 2 * padding;
-    h = (arr.length+1) * (elementHeight+padding) + padding;
+    x = cornerX + w/2;
+    y = cornerY + h/2;
     
-    x += w/2;
-    y += h/2;
+    float yPos = -h/2 + 1.5*elementHeight + 2*padding;
+    for(int i = 0; i < elements.size(); i++){
+      Button b = elements.get(i);
+      b.x = 0;
+      b.y = yPos;
+      yPos += padding+elementHeight;
+      b.w = max;
+      b.h = elementHeight;
+    }
   }
   
-  public StringMenu(String[] arr, String title, CallbackFunctionInt intFunction){
+  public StringMenu(String title, CallbackFunctionString intFunction, float elementHeight){
     heading = title;
+    this.elementHeight = elementHeight;
     elements = new ArrayList<Button>();
     f = intFunction;
-    UpdateEntries(arr);
   }
   
   @Override
@@ -60,25 +175,39 @@ class StringMenu extends UIElement{
   public String GetEntry(int i){
     return elements.get(i).Text();
   }
+  public void AddEntry(String s){
+    AddEntry(s,true);
+  }
+  public boolean HasEntry(String s){
+    for(Button m : elements){
+      if(m.Text().equals(s)){
+        return true;
+      }
+    }
+    return false;
+  }
+  public void AddEntry(String s, boolean updateDims){
+    int i = elements.size();
+    final int thisIndex = i;
+    final CallbackFunctionString finalCallback = f;
+    elements.add(new Button(s,0,0,0,0,gateHoverCol, trueCol, new CallbackFunction(){
+      @Override
+      public void f(){
+        finalCallback.f(elements.get(thisIndex).Text());
+      }
+    }));
+    elements.get(i).parent = this;
+    if(updateDims){
+      updateDimensions();
+    }
+  }
   
   public void UpdateEntries(String[] arr){
     elements.clear();
-    updateDimensions(arr);
     for(int i =0; i < arr.length; i++){
-      float x1 = 0;
-      float y1 = padding + (i+1.5)*(elementHeight+padding)-h/2;
-      float w1 = w-2*padding;
-      float h1 = elementHeight;
-      final CallbackFunctionInt finalCallback = f;
-      final int thisIndex = i;
-      elements.add(new Button(arr[i],x1,y1,w1,h1,gateHoverCol, trueCol, new CallbackFunction(){
-        @Override
-        public void f(){
-          finalCallback.f(thisIndex);
-        }
-      }));
-      elements.get(i).parent = this;
+      AddEntry(arr[i],false);
     }
+    updateDimensions();
   }
   
   boolean listClicked = false;
@@ -143,7 +272,7 @@ class TextInput extends UIElement{
   }
   
   private boolean isLegit(char c){
-    return (((c>='0')&&(c<='9'))||((c>='a')&&(c<='z'))||((c>='A')&&(c<='Z')));//&&("(){}[]/.,;'\"\\=!@#$%^&*~`".indexOf(c)==-1);
+    return (((c>='0')&&(c<='9'))||((c>='a')&&(c<='z'))||((c>='A')&&(c<='Z')));
   }
   
   private void drawContents(String str){
